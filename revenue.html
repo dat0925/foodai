@@ -22,7 +22,7 @@ body{
   font-family:'Noto Sans JP',sans-serif;font-weight:300;
   min-height:100vh;
 }
-body.hidden{visibility:hidden;}
+
 
 nav{
   position:sticky;top:0;z-index:100;
@@ -178,10 +178,8 @@ tr:last-child td{border-bottom:none;}
 }
 </style>
 </head>
-<body class="hidden">
-<script>
-requireAuth(() => { document.body.classList.remove('hidden'); });
-</script>
+<body>
+<script>requireAuth(() => {});</script>
 
 <nav>
   <a href="index.html" class="nav-logo">

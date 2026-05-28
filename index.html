@@ -9,7 +9,7 @@
 <script src="auth.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body.hidden { visibility: hidden; }
+
 
   :root {
     --ink:    #0E0C0A;
@@ -438,8 +438,8 @@
   }
 </style>
 </head>
-<body class="hidden">
-<script>requireAuth(() => { document.body.classList.remove('hidden'); });</script>
+<body>
+<script>requireAuth(() => {});</script>
 
 <!-- NAV -->
 <nav>

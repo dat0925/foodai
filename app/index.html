@@ -23,7 +23,7 @@
   --line:    #06C755;
 }
 html, body { height: 100%; overflow: hidden; }
-body.hidden { visibility: hidden; }
+
 body {
   background: var(--bg); color: var(--cream);
   font-family: 'Noto Sans JP', sans-serif; font-weight: 300;
@@ -332,8 +332,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .quick-btn:hover { background: rgba(212,136,58,.2); }
 </style>
 </head>
-<body class="hidden">
-<script>requireAuth(() => { document.body.classList.remove('hidden'); });</script>
+<body>
+<script>requireAuth(() => {});</script>
 
 <!-- SIDEBAR -->
 <nav class="sidebar">
