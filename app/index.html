@@ -6,6 +6,7 @@
 <title>FoodAI — ダッシュボード</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="../lp/auth.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -22,6 +23,7 @@
   --line:    #06C755;
 }
 html, body { height: 100%; overflow: hidden; }
+body.hidden { visibility: hidden; }
 body {
   background: var(--bg); color: var(--cream);
   font-family: 'Noto Sans JP', sans-serif; font-weight: 300;
@@ -330,7 +332,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .quick-btn:hover { background: rgba(212,136,58,.2); }
 </style>
 </head>
-<body>
+<body class="hidden">
+<script>requireAuth(() => { document.body.classList.remove('hidden'); });</script>
 
 <!-- SIDEBAR -->
 <nav class="sidebar">

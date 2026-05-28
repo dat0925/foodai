@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FoodAI — 収益構造</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="auth.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0E0C0A;--surface:#181512;--card:#1E1A16;
+  --border:rgba(255,255,255,.07);
+  --amber:#D4883A;--ember:#B85C1E;
+  --cream:#F0E8DA;--mist:#7A6F64;
+  --green:#3DBD7A;--red:#E05555;
+}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);color:var(--cream);
+  font-family:'Noto Sans JP',sans-serif;font-weight:300;
+  min-height:100vh;
+}
+body.hidden{visibility:hidden;}
+
+nav{
+  position:sticky;top:0;z-index:100;
+  padding:1.2rem 2rem;
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(14,12,10,.95);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+}
+.nav-logo{
+  font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;
+  color:var(--cream);text-decoration:none;
+  display:flex;align-items:center;gap:.6rem;
+}
+.nav-logo span{color:var(--amber);}
+.back-link{
+  font-size:.8rem;color:var(--mist);text-decoration:none;
+  display:flex;align-items:center;gap:.4rem;
+  transition:color .2s;
+}
+.back-link:hover{color:var(--cream);}
+
+main{max-width:1000px;margin:0 auto;padding:3rem 1.5rem 6rem;}
+
+h1{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:clamp(1.6rem,4vw,2.4rem);
+  letter-spacing:-.03em;margin-bottom:.6rem;
+}
+.page-sub{color:var(--mist);font-size:.9rem;line-height:1.8;margin-bottom:3rem;}
+
+/* ── SLIDER ── */
+.slider-section{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:12px;padding:1.8rem 2rem;margin-bottom:2rem;
+}
+.slider-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem;
+}
+.slider-title{font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;letter-spacing:.08em;color:var(--mist);}
+.slider-value{
+  font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:var(--amber);
+}
+input[type=range]{
+  width:100%;-webkit-appearance:none;appearance:none;
+  height:4px;border-radius:2px;
+  background:linear-gradient(to right, var(--amber) var(--pct,40%), rgba(255,255,255,.1) var(--pct,40%));
+  outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+  background:var(--amber);border:3px solid var(--bg);
+  box-shadow:0 0 0 2px rgba(212,136,58,.4);cursor:pointer;
+}
+.slider-ticks{display:flex;justify-content:space-between;margin-top:.5rem;}
+.slider-tick{font-size:.65rem;color:var(--mist);}
+
+/* ── PLAN CARDS ── */
+.plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem;}
+@media(max-width:700px){.plans-grid{grid-template-columns:1fr;}}
+
+.plan-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;
+}
+.plan-card.featured{border-color:rgba(212,136,58,.35);}
+.plan-head{
+  padding:1.2rem 1.5rem;
+  border-bottom:1px solid var(--border);
+}
+.plan-head.free{background:rgba(255,255,255,.02);}
+.plan-head.standard{background:rgba(212,136,58,.07);}
+.plan-head.premium{background:rgba(184,92,30,.08);}
+.plan-name{
+  font-family:'Syne',sans-serif;font-size:.7rem;
+  letter-spacing:.18em;color:var(--mist);margin-bottom:.4rem;
+}
+.plan-price-row{display:flex;align-items:baseline;gap:.3rem;}
+.plan-price{
+  font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;
+}
+.plan-price-unit{font-size:.78rem;color:var(--mist);}
+
+.plan-body{padding:1.2rem 1.5rem;display:flex;flex-direction:column;gap:1rem;}
+
+.metric{display:flex;flex-direction:column;gap:.2rem;}
+.metric-label{font-size:.68rem;color:var(--mist);letter-spacing:.06em;}
+.metric-value{
+  font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:700;
+}
+.metric-value.income{color:var(--green);}
+.metric-value.cost{color:var(--red);}
+.metric-value.profit{color:var(--amber);}
+.metric-value.ltv{color:#B8A0F0;}
+
+.metric-bar-wrap{height:4px;background:rgba(255,255,255,.07);border-radius:2px;margin-top:.3rem;}
+.metric-bar{height:100%;border-radius:2px;transition:width .5s ease;}
+
+.divider{height:1px;background:var(--border);}
+
+.margin-row{
+  display:flex;align-items:center;justify-content:space-between;
+}
+.margin-label{font-size:.72rem;color:var(--mist);}
+.margin-value{
+  font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;
+  padding:.2rem .6rem;border-radius:20px;
+}
+
+/* ── SUMMARY TABLE ── */
+.summary{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;margin-bottom:2rem;
+}
+.summary-title{
+  padding:1rem 1.5rem;border-bottom:1px solid var(--border);
+  font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;
+  color:var(--mist);letter-spacing:.08em;
+}
+table{width:100%;border-collapse:collapse;}
+th{
+  padding:.7rem 1rem;font-size:.7rem;color:var(--mist);
+  letter-spacing:.08em;font-weight:400;text-align:left;
+  border-bottom:1px solid var(--border);
+  background:rgba(255,255,255,.02);
+}
+td{
+  padding:.8rem 1rem;font-size:.85rem;
+  border-bottom:1px solid rgba(255,255,255,.04);
+  font-family:'Syne',sans-serif;
+}
+tr:last-child td{border-bottom:none;}
+.td-green{color:var(--green);}
+.td-red{color:var(--red);}
+.td-amber{color:var(--amber);}
+.td-purple{color:#B8A0F0;}
+
+/* ── NOTES ── */
+.notes{
+  background:rgba(212,136,58,.06);border:1px solid rgba(212,136,58,.15);
+  border-radius:8px;padding:1.2rem 1.5rem;
+}
+.notes-title{font-size:.75rem;color:var(--amber);letter-spacing:.1em;margin-bottom:.8rem;}
+.notes ul{padding-left:1rem;display:flex;flex-direction:column;gap:.5rem;}
+.notes li{font-size:.82rem;color:rgba(240,232,218,.7);line-height:1.7;}
+
+/* ── RESPONSIVE HELPERS ── */
+@media(max-width:500px){
+  nav{padding:1rem 1.2rem;}
+  main{padding:2rem 1rem 4rem;}
+  .slider-section{padding:1.2rem;}
+  th,td{padding:.6rem .8rem;font-size:.78rem;}
+}
+</style>
+</head>
+<body class="hidden">
+<script>
+requireAuth(() => { document.body.classList.remove('hidden'); });
+</script>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <img src="logo.jpg" alt="FoodAI" style="height:28px;width:28px;border-radius:6px;object-fit:cover;">
+    Food<span>AI</span>
+  </a>
+  <a href="index.html" class="back-link">← LP に戻る</a>
+</nav>
+
+<main>
+  <h1>収益構造シミュレーター</h1>
+  <p class="page-sub">
+    契約期間・契約数の仮定を変えて、各プランの収益モデルを確認できます。<br>
+    API原価は月間処理量の推定値。実際の利用量により変動します。
+  </p>
+
+  <!-- SLIDERS -->
+  <div class="slider-section">
+    <div class="slider-header">
+      <span class="slider-title">平均契約継続期間</span>
+      <span class="slider-value" id="durationVal">12ヶ月</span>
+    </div>
+    <input type="range" id="durationSlider" min="3" max="36" value="12" step="1">
+    <div class="slider-ticks">
+      <span class="slider-tick">3ヶ月</span>
+      <span class="slider-tick">12ヶ月</span>
+      <span class="slider-tick">24ヶ月</span>
+      <span class="slider-tick">36ヶ月</span>
+    </div>
+  </div>
+
+  <div class="slider-section">
+    <div class="slider-header">
+      <span class="slider-title">想定契約店舗数（合計）</span>
+      <span class="slider-value" id="shopsVal">100店舗</span>
+    </div>
+    <input type="range" id="shopsSlider" min="10" max="500" value="100" step="10">
+    <div class="slider-ticks">
+      <span class="slider-tick">10</span>
+      <span class="slider-tick">100</span>
+      <span class="slider-tick">300</span>
+      <span class="slider-tick">500</span>
+    </div>
+  </div>
+
+  <div class="slider-section">
+    <div class="slider-header">
+      <span class="slider-title">プラン分布（Free : Standard : Premium）</span>
+      <span class="slider-value" id="mixVal">30 : 50 : 20</span>
+    </div>
+    <input type="range" id="mixSlider" min="0" max="100" value="50" step="5">
+    <div class="slider-ticks">
+      <span class="slider-tick">← Free多め</span>
+      <span class="slider-tick">バランス</span>
+      <span class="slider-tick">Premium多め →</span>
+    </div>
+  </div>
+
+  <!-- PLAN CARDS -->
+  <div class="plans-grid" id="plansGrid"></div>
+
+  <!-- SUMMARY TABLE -->
+  <div class="summary">
+    <div class="summary-title">月次サマリー（<span id="summaryShops">100</span>店舗合計）</div>
+    <table>
+      <thead>
+        <tr>
+          <th>項目</th>
+          <th>Free</th>
+          <th>Standard</th>
+          <th>Premium</th>
+          <th>合計</th>
+        </tr>
+      </thead>
+      <tbody id="summaryBody"></tbody>
+    </table>
+  </div>
+
+  <!-- NOTES -->
+  <div class="notes">
+    <div class="notes-title">📌 原価の前提条件</div>
+    <ul>
+      <li><strong>Claude API：</strong>月間メッセージ数×平均トークン数で試算。Free=月50予約、Standard=月300予約、Premium=月500予約+MEO処理。1予約あたり約2,000トークン換算。</li>
+      <li><strong>Supabase：</strong>Pro $25/月をユーザー数で按分。100店舗規模ではほぼ固定費扱い。</li>
+      <li><strong>LINE Messaging API：</strong>フリープラン月200通まで無料。超過分は従量（¥0.2/通）。Standard以上で月500〜2,000通想定。</li>
+      <li><strong>その他固定費：</strong>Vercel・ドメイン・Stripe手数料（売上の3.6%）を含む。</li>
+      <li><strong>LTV：</strong>月額粗利 × 平均継続月数で算出。解約率は考慮していない簡易試算。</li>
+    </ul>
+  </div>
+</main>
+
+<script>
+// ── PLAN DEFINITIONS
+const PLANS = [
+  {
+    key:'free', name:'FREE', price:0, label:'free',
+    costBase:300, // Claude API + インフラ按分
+    color:'rgba(255,255,255,.5)',
+    desc:'月50件予約上限。LINE予約のみ。',
+  },
+  {
+    key:'standard', name:'STANDARD', price:5500, label:'standard',
+    costBase:1200,
+    color:'var(--amber)',
+    desc:'LINE予約＋シフト予測。月300件予約想定。',
+  },
+  {
+    key:'premium', name:'PREMIUM', price:9800, label:'premium',
+    costBase:2200,
+    color:'var(--ember)',
+    desc:'全エージェント。MEO＋高頻度API利用。',
+  },
+];
+
+function fmt(n){
+  if(n>=1000000) return '¥'+(n/1000000).toFixed(1)+'M';
+  if(n>=10000) return '¥'+(n/10000).toFixed(1)+'万';
+  return '¥'+n.toLocaleString();
+}
+function pct(val,max){return Math.min(100,Math.round(val/max*100));}
+
+function getDistribution(mixVal, total) {
+  // mix 0=Free多め(60:30:10), 50=バランス(30:50:20), 100=Premium多め(15:40:45)
+  const t = mixVal/100;
+  const freeR  = 0.60 - t*0.45; // 60% → 15%
+  const stdR   = 0.30 + t*0.10; // 30% → 40%
+  const preR   = 1 - freeR - stdR;
+  return {
+    free:     Math.round(total * freeR),
+    standard: Math.round(total * stdR),
+    premium:  Math.max(0, total - Math.round(total*freeR) - Math.round(total*stdR)),
+  };
+}
+
+function calcPlan(plan, count, duration) {
+  const revenue     = plan.price * count;
+  const stripeFee   = plan.price > 0 ? Math.round(revenue * 0.036) : 0;
+  const cost        = plan.costBase * count + stripeFee;
+  const grossProfit = revenue - cost;
+  const margin      = revenue > 0 ? Math.round(grossProfit/revenue*100) : 0;
+  const ltv         = grossProfit * duration;
+  return { revenue, cost, grossProfit, margin, ltv, count };
+}
+
+function render() {
+  const duration = parseInt(document.getElementById('durationSlider').value);
+  const total    = parseInt(document.getElementById('shopsSlider').value);
+  const mix      = parseInt(document.getElementById('mixSlider').value);
+  const dist     = getDistribution(mix, total);
+
+  // Update labels
+  document.getElementById('durationVal').textContent = duration+'ヶ月';
+  document.getElementById('shopsVal').textContent    = total+'店舗';
+  document.getElementById('summaryShops').textContent= total;
+  const fR=Math.round(dist.free/total*100), sR=Math.round(dist.standard/total*100);
+  document.getElementById('mixVal').textContent = `${fR} : ${sR} : ${100-fR-sR}`;
+
+  const results = PLANS.map(p => ({ ...calcPlan(p, dist[p.key], duration), plan: p }));
+  const maxRevenue = Math.max(...results.map(r=>r.revenue))||1;
+  const maxLtv     = Math.max(...results.map(r=>r.ltv))||1;
+
+  // Plan cards
+  const grid = document.getElementById('plansGrid');
+  grid.innerHTML = results.map(r => {
+    const p = r.plan;
+    const marginColor = r.margin >= 70 ? 'var(--green)' : r.margin >= 40 ? 'var(--amber)' : 'var(--red)';
+    return `
+    <div class="plan-card ${p.key==='standard'?'featured':''}">
+      <div class="plan-head ${p.label}">
+        <div class="plan-name">${p.name}</div>
+        <div class="plan-price-row">
+          <span class="plan-price">${p.price===0?'無料':fmt(p.price)}</span>
+          ${p.price>0?'<span class="plan-price-unit">/月</span>':''}
+        </div>
+        <div style="font-size:.72rem;color:var(--mist);margin-top:.3rem">${r.count}店舗</div>
+      </div>
+      <div class="plan-body">
+        <div class="metric">
+          <span class="metric-label">月間売上</span>
+          <span class="metric-value income">${fmt(r.revenue)}</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:${pct(r.revenue,maxRevenue)}%;background:var(--green);"></div></div>
+        </div>
+        <div class="metric">
+          <span class="metric-label">月間原価（API＋インフラ）</span>
+          <span class="metric-value cost">${fmt(r.cost)}</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:${pct(r.cost,maxRevenue)}%;background:var(--red);"></div></div>
+        </div>
+        <div class="divider"></div>
+        <div class="metric">
+          <span class="metric-label">月間粗利</span>
+          <span class="metric-value profit">${fmt(r.grossProfit)}</span>
+        </div>
+        <div class="margin-row">
+          <span class="margin-label">粗利率</span>
+          <span class="margin-value" style="background:${marginColor}22;color:${marginColor}">${r.margin}%</span>
+        </div>
+        <div class="divider"></div>
+        <div class="metric">
+          <span class="metric-label">LTV（${duration}ヶ月）</span>
+          <span class="metric-value ltv">${fmt(r.ltv)}</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:${pct(r.ltv,maxLtv)}%;background:#B8A0F0;"></div></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Summary table
+  const totRevenue  = results.reduce((s,r)=>s+r.revenue,0);
+  const totCost     = results.reduce((s,r)=>s+r.cost,0);
+  const totProfit   = results.reduce((s,r)=>s+r.grossProfit,0);
+  const totLtv      = results.reduce((s,r)=>s+r.ltv,0);
+  const totMargin   = totRevenue>0?Math.round(totProfit/totRevenue*100):0;
+
+  document.getElementById('summaryBody').innerHTML = `
+    <tr>
+      <td style="color:var(--mist)">月間売上</td>
+      ${results.map(r=>`<td class="td-green">${fmt(r.revenue)}</td>`).join('')}
+      <td class="td-green" style="font-weight:600">${fmt(totRevenue)}</td>
+    </tr>
+    <tr>
+      <td style="color:var(--mist)">月間原価</td>
+      ${results.map(r=>`<td class="td-red">${fmt(r.cost)}</td>`).join('')}
+      <td class="td-red">${fmt(totCost)}</td>
+    </tr>
+    <tr>
+      <td style="color:var(--mist)">月間粗利</td>
+      ${results.map(r=>`<td class="td-amber">${fmt(r.grossProfit)}</td>`).join('')}
+      <td class="td-amber" style="font-weight:600">${fmt(totProfit)}</td>
+    </tr>
+    <tr>
+      <td style="color:var(--mist)">粗利率</td>
+      ${results.map(r=>`<td>${r.margin}%</td>`).join('')}
+      <td style="font-weight:600">${totMargin}%</td>
+    </tr>
+    <tr>
+      <td style="color:var(--mist)">LTV合計</td>
+      ${results.map(r=>`<td class="td-purple">${fmt(r.ltv)}</td>`).join('')}
+      <td class="td-purple" style="font-weight:600">${fmt(totLtv)}</td>
+    </tr>
+  `;
+
+  // Update slider gradients
+  document.querySelectorAll('input[type=range]').forEach(s => {
+    const pctVal = (s.value - s.min) / (s.max - s.min) * 100;
+    s.style.setProperty('--pct', pctVal+'%');
+  });
+}
+
+['durationSlider','shopsSlider','mixSlider'].forEach(id => {
+  document.getElementById(id).addEventListener('input', render);
+});
+
+render();
+</script>
+</body>
+</html>

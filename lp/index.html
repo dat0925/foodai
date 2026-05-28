@@ -6,8 +6,10 @@
 <title>FoodAI — 飲食店専用AIエージェント</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700;800&family=Syne:wght@400;600;800&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="auth.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body.hidden { visibility: hidden; }
 
   :root {
     --ink:    #0E0C0A;
@@ -436,7 +438,8 @@
   }
 </style>
 </head>
-<body>
+<body class="hidden">
+<script>requireAuth(() => { document.body.classList.remove('hidden'); });</script>
 
 <!-- NAV -->
 <nav>
@@ -517,8 +520,20 @@
 <section class="agents" id="agents">
   <div class="agents-intro">
     <p class="section-label">Agents</p>
-    <h2>3つのAIエージェントが<br>業務を自動化する</h2>
-    <p>チャットのやり取りだけで動く。複雑な設定は不要。導入初日から動き始める。</p>
+    <h2>AIエージェントが<br>唯一のUIになる</h2>
+    <p>顧客も、オーナーも、スタッフも——<strong style="color:var(--cream)">LINEだけで完結する。</strong><br>
+    複雑な管理画面は不要。「今日の来客予測は？」とLINEに送れば、AIがすぐ答える。</p>
+    <div style="margin-top:1.5rem;display:flex;gap:1.5rem;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--mist)">
+        <span style="color:var(--line-green)">●</span> 顧客 → LINEで予約
+      </div>
+      <div style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--mist)">
+        <span style="color:var(--amber)">●</span> オーナー → LINEで質問・指示
+      </div>
+      <div style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--mist)">
+        <span style="color:rgba(255,255,255,.3)">●</span> 管理画面はデータ確認のみ（SP最適化）
+      </div>
+    </div>
   </div>
 
   <!-- Agent 01 -->
@@ -753,6 +768,7 @@
     Food<span>AI</span>
   </div>
   <p>© 2025 FoodAI. All rights reserved.</p>
+  <a href="revenue.html" style="font-size:.72rem;color:rgba(122,111,100,.4);text-decoration:none;letter-spacing:.06em;transition:color .2s;" onmouseover="this.style.color='rgba(212,136,58,.6)'" onmouseout="this.style.color='rgba(122,111,100,.4)'">収益構造 →</a>
 </footer>
 
 <script>
