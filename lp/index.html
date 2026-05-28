@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FoodAI — 飲食店専用AIエージェント</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700;800&family=Syne:wght@400;600;800&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink:    #0E0C0A;
+    --cream:  #F6EFE4;
+    --warm:   #F0E6D0;
+    --amber:  #D4883A;
+    --ember:  #B85C1E;
+    --smoke:  #2A2520;
+    --mist:   #7A6F64;
+    --line-green: #06C755;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--ink);
+    color: var(--cream);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 300;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 999;
+    opacity: 0.4;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; width: 100%; z-index: 100;
+    padding: 1.4rem 4rem;
+    display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(14,12,10,.9), transparent);
+    backdrop-filter: blur(8px);
+  }
+  .nav-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 1.4rem;
+    letter-spacing: -.02em; color: var(--cream);
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--amber); }
+  .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+  .nav-links a {
+    color: var(--mist); font-size: .85rem; letter-spacing: .08em;
+    text-decoration: none; transition: color .2s;
+  }
+  .nav-links a:hover { color: var(--cream); }
+  .nav-cta {
+    background: var(--amber); color: var(--ink);
+    border: none; padding: .6rem 1.5rem; border-radius: 2px;
+    font-family: 'Noto Sans JP', sans-serif; font-size: .82rem; font-weight: 500;
+    cursor: pointer; text-decoration: none;
+    transition: background .2s, transform .15s;
+  }
+  .nav-cta:hover { background: var(--ember); transform: translateY(-1px); }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex; align-items: center;
+    padding: 7rem 4rem 4rem;
+    position: relative; overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 70% 40%, rgba(212,136,58,.12) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 50% at 20% 70%, rgba(184,92,30,.08) 0%, transparent 60%);
+  }
+  .hero-line {
+    position: absolute; top: 0; right: 22vw;
+    width: 1px; height: 100%;
+    background: linear-gradient(to bottom, transparent, rgba(212,136,58,.3) 30%, rgba(212,136,58,.15) 70%, transparent);
+  }
+  .hero-content { position: relative; max-width: 720px; }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: .5rem;
+    border: 1px solid rgba(212,136,58,.4);
+    padding: .35rem 1rem; border-radius: 20px;
+    font-size: .75rem; letter-spacing: .12em; color: var(--amber);
+    margin-bottom: 2.5rem;
+    animation: fadeUp .8s ease both;
+  }
+  .hero-badge::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--amber); animation: pulse 2s ease infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+  h1 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(2.8rem, 6vw, 5.5rem);
+    font-weight: 700; line-height: 1.15;
+    letter-spacing: -.02em;
+    animation: fadeUp .8s .1s ease both;
+  }
+  h1 em { font-style: normal; color: var(--amber); }
+
+  .hero-sub {
+    margin-top: 2rem; font-size: 1.05rem;
+    color: var(--mist); line-height: 1.9;
+    max-width: 560px;
+    animation: fadeUp .8s .2s ease both;
+  }
+
+  .hero-actions {
+    margin-top: 3rem; display: flex; gap: 1rem; align-items: center;
+    animation: fadeUp .8s .3s ease both;
+  }
+  .btn-primary {
+    background: var(--amber); color: var(--ink);
+    padding: .9rem 2.2rem; border-radius: 2px;
+    font-size: .95rem; font-weight: 500; text-decoration: none;
+    transition: background .2s, transform .15s;
+    display: inline-block;
+  }
+  .btn-primary:hover { background: var(--ember); transform: translateY(-2px); }
+  .btn-ghost {
+    color: var(--cream); font-size: .9rem; text-decoration: none;
+    display: flex; align-items: center; gap: .5rem;
+    opacity: .7; transition: opacity .2s;
+  }
+  .btn-ghost:hover { opacity: 1; }
+  .btn-ghost::after { content: '→'; }
+
+  .hero-numbers {
+    margin-top: 5rem;
+    display: flex; gap: 3rem;
+    animation: fadeUp .8s .4s ease both;
+  }
+  .hero-number h3 {
+    font-family: 'Syne', sans-serif; font-size: 2.2rem; font-weight: 800;
+    color: var(--amber);
+  }
+  .hero-number p { font-size: .8rem; color: var(--mist); margin-top: .2rem; letter-spacing: .06em; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── SECTION COMMON ── */
+  section { padding: 7rem 4rem; }
+  .section-label {
+    font-family: 'Syne', sans-serif; font-size: .72rem;
+    letter-spacing: .2em; color: var(--amber);
+    text-transform: uppercase; margin-bottom: 1.5rem;
+  }
+  h2 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 700;
+    line-height: 1.3; letter-spacing: -.02em;
+  }
+
+  /* ── PROBLEM ── */
+  .problem {
+    background: var(--smoke);
+    border-top: 1px solid rgba(255,255,255,.06);
+  }
+  .problem-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1px; margin-top: 4rem;
+    border: 1px solid rgba(255,255,255,.06);
+  }
+  .problem-item {
+    padding: 2.5rem 2rem;
+    border-right: 1px solid rgba(255,255,255,.06);
+    transition: background .3s;
+  }
+  .problem-item:last-child { border-right: none; }
+  .problem-item:hover { background: rgba(212,136,58,.06); }
+  .problem-icon { font-size: 1.8rem; margin-bottom: 1rem; }
+  .problem-item h3 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 1.15rem; font-weight: 700; margin-bottom: .6rem;
+  }
+  .problem-item p { font-size: .85rem; color: var(--mist); line-height: 1.8; }
+
+  /* ── AGENTS ── */
+  .agents { background: var(--ink); }
+  .agents-intro { max-width: 600px; margin-bottom: 5rem; }
+  .agents-intro p { margin-top: 1.2rem; color: var(--mist); line-height: 1.9; }
+
+  .agent-card {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1px; margin-bottom: 1px;
+    background: rgba(255,255,255,.05);
+  }
+  .agent-card:last-child { margin-bottom: 0; }
+  .agent-card.reverse { direction: rtl; }
+  .agent-card.reverse > * { direction: ltr; }
+
+  .agent-info {
+    padding: 4rem;
+    background: var(--ink);
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .agent-num {
+    font-family: 'Syne', sans-serif; font-size: .72rem;
+    letter-spacing: .2em; color: var(--amber); margin-bottom: 1.5rem;
+  }
+  .agent-info h3 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(1.6rem, 2.5vw, 2.2rem); font-weight: 700;
+    margin-bottom: 1.2rem; line-height: 1.3;
+  }
+  .agent-info p { color: var(--mist); line-height: 1.9; font-size: .95rem; }
+
+  .agent-features {
+    margin-top: 2rem; display: flex; flex-direction: column; gap: .7rem;
+  }
+  .agent-feature {
+    display: flex; align-items: flex-start; gap: .7rem;
+    font-size: .85rem; color: rgba(246,239,228,.7);
+  }
+  .agent-feature::before {
+    content: '—'; color: var(--amber); flex-shrink: 0;
+    margin-top: .05em;
+  }
+
+  .agent-visual {
+    padding: 4rem;
+    background: var(--smoke);
+    display: flex; flex-direction: column; justify-content: center;
+  }
+
+  /* LINE Chat mockup */
+  .chat-mock {
+    background: #1A1714; border-radius: 12px;
+    padding: 1.5rem; max-width: 360px;
+  }
+  .chat-header {
+    display: flex; align-items: center; gap: .8rem;
+    padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,.07);
+    margin-bottom: 1.2rem;
+  }
+  .chat-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--line-green);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .7rem; font-weight: 700; color: white;
+  }
+  .chat-name { font-size: .85rem; font-weight: 500; }
+  .chat-status { font-size: .7rem; color: var(--line-green); }
+  .msg { margin-bottom: .8rem; display: flex; flex-direction: column; }
+  .msg.user { align-items: flex-end; }
+  .msg.ai { align-items: flex-start; }
+  .bubble {
+    padding: .7rem 1rem; border-radius: 12px;
+    font-size: .8rem; line-height: 1.7; max-width: 85%;
+  }
+  .msg.user .bubble { background: var(--line-green); color: white; border-bottom-right-radius: 3px; }
+  .msg.ai .bubble { background: #2E2A26; color: var(--cream); border-bottom-left-radius: 3px; }
+  .msg-time { font-size: .65rem; color: var(--mist); margin-top: .25rem; }
+
+  /* Shift mockup */
+  .shift-mock {
+    background: #1A1714; border-radius: 12px; overflow: hidden;
+  }
+  .shift-header {
+    padding: 1rem 1.5rem;
+    background: rgba(212,136,58,.1);
+    border-bottom: 1px solid rgba(212,136,58,.2);
+    font-size: .8rem; font-weight: 500; color: var(--amber);
+  }
+  .shift-table { width: 100%; padding: 1rem 1.5rem; }
+  .shift-row {
+    display: grid; grid-template-columns: 80px repeat(7, 1fr);
+    gap: 3px; margin-bottom: 3px;
+  }
+  .shift-cell {
+    padding: .4rem .3rem; border-radius: 3px;
+    font-size: .65rem; text-align: center;
+    background: rgba(255,255,255,.04);
+    color: var(--mist);
+  }
+  .shift-cell.filled { background: rgba(212,136,58,.25); color: var(--amber); }
+  .shift-cell.high { background: rgba(184,92,30,.35); color: #F5A060; }
+  .shift-cell.head { background: transparent; color: var(--mist); font-size: .6rem; }
+  .forecast-bar {
+    margin: 1rem 1.5rem .5rem;
+    display: flex; align-items: flex-end; gap: 3px; height: 48px;
+  }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .bar { width: 100%; border-radius: 2px 2px 0 0; background: rgba(212,136,58,.25); transition: height .3s; }
+  .bar.peak { background: var(--amber); }
+  .bar-label { font-size: .55rem; color: var(--mist); }
+  .forecast-caption { text-align: center; font-size: .7rem; color: var(--mist); padding-bottom: 1rem; }
+
+  /* ── FLOW ── */
+  .flow { background: var(--smoke); }
+  .flow-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+    gap: 0; margin-top: 4rem; position: relative;
+  }
+  .flow-grid::after {
+    content: '';
+    position: absolute; top: 3rem; left: 0; right: 0;
+    height: 1px; background: rgba(212,136,58,.2);
+  }
+  .flow-step { padding: 0 2rem 3rem; position: relative; }
+  .flow-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--amber); margin-bottom: 2rem; position: relative; z-index: 1;
+  }
+  .flow-step:first-child .flow-dot::before,
+  .flow-step:last-child .flow-dot::after { display: none; }
+  .flow-num {
+    font-family: 'Syne', sans-serif; font-size: .7rem;
+    letter-spacing: .15em; color: var(--amber); margin-bottom: .8rem;
+  }
+  .flow-step h4 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 1.05rem; font-weight: 700; margin-bottom: .6rem;
+  }
+  .flow-step p { font-size: .82rem; color: var(--mist); line-height: 1.8; }
+
+  /* ── PRICING ── */
+  .pricing { background: var(--ink); }
+  .pricing-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; margin-top: 4rem;
+    background: rgba(255,255,255,.05);
+  }
+  .plan {
+    padding: 3rem 2.5rem;
+    background: var(--ink);
+    position: relative;
+    transition: background .3s;
+  }
+  .plan:hover { background: rgba(212,136,58,.04); }
+  .plan.featured {
+    background: var(--smoke);
+    border: 1px solid rgba(212,136,58,.3);
+    margin: -1px;
+  }
+  .plan-badge {
+    position: absolute; top: 1.5rem; right: 1.5rem;
+    background: var(--amber); color: var(--ink);
+    font-size: .65rem; font-weight: 500; padding: .25rem .7rem; border-radius: 20px;
+    letter-spacing: .06em;
+  }
+  .plan-name {
+    font-family: 'Syne', sans-serif; font-size: .75rem;
+    letter-spacing: .15em; color: var(--mist); margin-bottom: 1rem;
+  }
+  .plan-price {
+    font-family: 'Syne', sans-serif; font-size: 2.8rem;
+    font-weight: 800; color: var(--cream); line-height: 1;
+  }
+  .plan-price span { font-size: .9rem; font-weight: 400; color: var(--mist); }
+  .plan-desc { margin-top: 1rem; font-size: .82rem; color: var(--mist); line-height: 1.7; }
+  .plan-divider {
+    height: 1px; background: rgba(255,255,255,.07);
+    margin: 1.8rem 0;
+  }
+  .plan-features { list-style: none; display: flex; flex-direction: column; gap: .8rem; }
+  .plan-features li {
+    font-size: .84rem; color: rgba(246,239,228,.7);
+    display: flex; align-items: center; gap: .6rem;
+  }
+  .plan-features li::before { content: '✓'; color: var(--amber); font-size: .8rem; }
+  .plan-features li.muted { color: var(--mist); }
+  .plan-features li.muted::before { content: '—'; color: rgba(255,255,255,.15); }
+  .plan-cta {
+    display: block; text-align: center; margin-top: 2.5rem;
+    padding: .85rem; border: 1px solid rgba(212,136,58,.4);
+    color: var(--amber); text-decoration: none; font-size: .88rem;
+    border-radius: 2px; transition: all .2s;
+  }
+  .plan-cta:hover { background: var(--amber); color: var(--ink); }
+  .plan.featured .plan-cta {
+    background: var(--amber); color: var(--ink); border-color: var(--amber);
+  }
+  .plan.featured .plan-cta:hover { background: var(--ember); border-color: var(--ember); }
+
+  /* ── CTA ── */
+  .cta-section {
+    background: var(--smoke);
+    text-align: center; padding: 8rem 4rem;
+    position: relative; overflow: hidden;
+  }
+  .cta-section::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(212,136,58,.1) 0%, transparent 70%);
+  }
+  .cta-section > * { position: relative; }
+  .cta-section h2 { font-size: clamp(2rem, 5vw, 4rem); }
+  .cta-section p {
+    margin: 1.5rem auto 3rem; max-width: 480px;
+    color: var(--mist); line-height: 1.9; font-size: 1rem;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    padding: 3rem 4rem;
+    border-top: 1px solid rgba(255,255,255,.07);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .footer-logo {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 1.1rem; color: var(--cream);
+  }
+  .footer-logo span { color: var(--amber); }
+  footer p { font-size: .8rem; color: var(--mist); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    nav { padding: 1.2rem 1.5rem; }
+    .nav-links { display: none; }
+    section { padding: 5rem 1.5rem; }
+    .hero { padding: 6rem 1.5rem 3rem; }
+    .agent-card { grid-template-columns: 1fr; }
+    .agent-card.reverse { direction: ltr; }
+    .pricing-grid { grid-template-columns: 1fr; }
+    .hero-numbers { gap: 1.5rem; flex-wrap: wrap; }
+    footer { flex-direction: column; gap: 1rem; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">Food<span>AI</span></a>
+  <ul class="nav-links">
+    <li><a href="#agents">エージェント</a></li>
+    <li><a href="#flow">導入の流れ</a></li>
+    <li><a href="#pricing">料金</a></li>
+  </ul>
+  <a href="#pricing" class="nav-cta">無料で始める</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-line"></div>
+  <div class="hero-content">
+    <div class="hero-badge">飲食店専用 AI エージェント</div>
+    <h1>繁盛店の「裏側」を、<br><em>AIが丸ごと</em>引き受ける。</h1>
+    <p class="hero-sub">
+      予約対応、シフト組み、口コミ返信——<br>
+      毎日繰り返される業務をAIエージェントに任せて、<br>
+      オーナーは料理と接客だけに集中できる。
+    </p>
+    <div class="hero-actions">
+      <a href="#pricing" class="btn-primary">無料プランで試す</a>
+      <a href="#agents" class="btn-ghost">機能を見る</a>
+    </div>
+    <div class="hero-numbers">
+      <div class="hero-number">
+        <h3>3h</h3>
+        <p>週あたりの削減工数（平均）</p>
+      </div>
+      <div class="hero-number">
+        <h3>¥0</h3>
+        <p>初期費用・導入費用</p>
+      </div>
+      <div class="hero-number">
+        <h3>24h</h3>
+        <p>365日対応（AIが代わりに）</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section class="problem">
+  <p class="section-label">Problem</p>
+  <h2>飲食店オーナーの<br>「困った」あるある</h2>
+  <div class="problem-grid">
+    <div class="problem-item">
+      <div class="problem-icon">📱</div>
+      <h3>ピーク中に予約電話が鳴る</h3>
+      <p>ランチで手が離せない時間に限って着信。取れないまま機会損失、気づいたら後の祭り。</p>
+    </div>
+    <div class="problem-item">
+      <div class="problem-icon">📅</div>
+      <h3>シフト組みに週2時間</h3>
+      <p>スタッフの希望を集めて、予約状況を見ながら手作業で調整。毎週繰り返す消耗戦。</p>
+    </div>
+    <div class="problem-item">
+      <div class="problem-icon">⭐</div>
+      <h3>口コミを放置してしまう</h3>
+      <p>返信したほうがいいとわかってる。でも文章考える時間も余裕もない。</p>
+    </div>
+    <div class="problem-item">
+      <div class="problem-icon">💸</div>
+      <h3>食べログに月3〜5万払ってる</h3>
+      <p>予約手数料がじわじわ積み上がる。データは全部食べログのもの。</p>
+    </div>
+  </div>
+</section>
+
+<!-- AGENTS -->
+<section class="agents" id="agents">
+  <div class="agents-intro">
+    <p class="section-label">Agents</p>
+    <h2>3つのAIエージェントが<br>業務を自動化する</h2>
+    <p>チャットのやり取りだけで動く。複雑な設定は不要。導入初日から動き始める。</p>
+  </div>
+
+  <!-- Agent 01 -->
+  <div class="agent-card">
+    <div class="agent-info">
+      <p class="agent-num">AGENT 01</p>
+      <h3>LINE予約<br>エージェント</h3>
+      <p>LINEに届く予約・問い合わせをAIが24時間自動対応。日時・人数・氏名を会話で収集し、予約台帳へ自動記録。</p>
+      <div class="agent-features">
+        <span class="agent-feature">予約受付・変更・キャンセルを自動処理</span>
+        <span class="agent-feature">満席時に代替日時を自動提案</span>
+        <span class="agent-feature">前日・当日リマインダーを自動送信</span>
+        <span class="agent-feature">よくある質問にRAGで即答</span>
+      </div>
+    </div>
+    <div class="agent-visual">
+      <div class="chat-mock">
+        <div class="chat-header">
+          <div class="chat-avatar">AI</div>
+          <div>
+            <div class="chat-name">FoodAI 予約bot</div>
+            <div class="chat-status">● オンライン</div>
+          </div>
+        </div>
+        <div class="msg user">
+          <div class="bubble">土曜の夜、4人で予約したいのですが</div>
+          <div class="msg-time">23:14</div>
+        </div>
+        <div class="msg ai">
+          <div class="bubble">ありがとうございます！今週土曜（6/7）でよろしいですか？ご希望のお時間はありますか？</div>
+          <div class="msg-time">23:14</div>
+        </div>
+        <div class="msg user">
+          <div class="bubble">19時でお願いします</div>
+          <div class="msg-time">23:15</div>
+        </div>
+        <div class="msg ai">
+          <div class="bubble">6月7日(土) 19:00、4名様で承りました✓ お名前とご連絡先を教えていただけますか？</div>
+          <div class="msg-time">23:15</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agent 02 -->
+  <div class="agent-card reverse">
+    <div class="agent-info">
+      <p class="agent-num">AGENT 02</p>
+      <h3>シフト×<br>繁忙予測エージェント</h3>
+      <p>予約データ・天気・地域イベントを分析して来客数を予測。必要なシフト人数を算出し、LINEでスタッフと調整まで自動化。</p>
+      <div class="agent-features">
+        <span class="agent-feature">予約データ×天気×イベントで来客予測</span>
+        <span class="agent-feature">LINEでシフト希望を自動収集</span>
+        <span class="agent-feature">最適シフト案を自動生成</span>
+        <span class="agent-feature">月次の人件費レポートを出力</span>
+      </div>
+    </div>
+    <div class="agent-visual">
+      <div class="shift-mock">
+        <div class="shift-header">📊 来週の繁忙予測</div>
+        <div class="forecast-bar" id="forecastBars">
+          <!-- JS で描画 -->
+        </div>
+        <div class="forecast-caption">時間帯別来客予測（来週土曜）</div>
+        <div class="shift-table">
+          <div class="shift-row">
+            <div class="shift-cell head"></div>
+            <div class="shift-cell head">月</div>
+            <div class="shift-cell head">火</div>
+            <div class="shift-cell head">水</div>
+            <div class="shift-cell head">木</div>
+            <div class="shift-cell head">金</div>
+            <div class="shift-cell head" style="color:var(--amber)">土</div>
+            <div class="shift-cell head">日</div>
+          </div>
+          <div class="shift-row">
+            <div class="shift-cell head" style="font-size:.6rem">田中</div>
+            <div class="shift-cell filled">L</div>
+            <div class="shift-cell">—</div>
+            <div class="shift-cell filled">L</div>
+            <div class="shift-cell">—</div>
+            <div class="shift-cell filled">D</div>
+            <div class="shift-cell high">D</div>
+            <div class="shift-cell filled">L</div>
+          </div>
+          <div class="shift-row">
+            <div class="shift-cell head" style="font-size:.6rem">佐藤</div>
+            <div class="shift-cell">—</div>
+            <div class="shift-cell filled">D</div>
+            <div class="shift-cell">—</div>
+            <div class="shift-cell filled">D</div>
+            <div class="shift-cell">—</div>
+            <div class="shift-cell high">D</div>
+            <div class="shift-cell">—</div>
+          </div>
+          <div class="shift-row">
+            <div class="shift-cell head" style="font-size:.6rem">山田</div>
+            <div class="shift-cell filled">L</div>
+            <div class="shift-cell filled">L</div>
+            <div class="shift-cell">—</div>
+            <div class="shift-cell filled">L</div>
+            <div class="shift-cell filled">L+D</div>
+            <div class="shift-cell high">L+D</div>
+            <div class="shift-cell filled">D</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agent 03 -->
+  <div class="agent-card">
+    <div class="agent-info">
+      <p class="agent-num">AGENT 03</p>
+      <h3>MEO<br>エージェント</h3>
+      <p>Googleマップの口コミへの返信文を自動生成。低評価への対応文も提案。定期的な投稿でMEO順位の維持・向上も支援。</p>
+      <div class="agent-features">
+        <span class="agent-feature">口コミ返信文の自動生成・提案</span>
+        <span class="agent-feature">低評価への適切な対応文を生成</span>
+        <span class="agent-feature">Googleビジネスプロフィールへ定期投稿</span>
+        <span class="agent-feature">Premiumプランで利用可能</span>
+      </div>
+    </div>
+    <div class="agent-visual" style="align-items:center; justify-content:center;">
+      <div style="text-align:center; opacity:.5;">
+        <div style="font-size:3rem; margin-bottom:1rem;">🗺</div>
+        <p style="font-size:.82rem; color:var(--mist); line-height:1.8;">
+          Premiumプランで<br>利用可能なエージェント
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FLOW -->
+<section class="flow" id="flow">
+  <p class="section-label">How it works</p>
+  <h2>導入から稼働まで<br>最短1日</h2>
+  <div class="flow-grid">
+    <div class="flow-step">
+      <div class="flow-dot"></div>
+      <p class="flow-num">STEP 01</p>
+      <h4>アカウント作成</h4>
+      <p>Googleアカウントでサインイン。店舗情報を入力するだけ。</p>
+    </div>
+    <div class="flow-step">
+      <div class="flow-dot"></div>
+      <p class="flow-num">STEP 02</p>
+      <h4>LINE連携</h4>
+      <p>LINE公式アカウントのWebhook URLを設定。5分で完了。</p>
+    </div>
+    <div class="flow-step">
+      <div class="flow-dot"></div>
+      <p class="flow-num">STEP 03</p>
+      <h4>スタッフ登録</h4>
+      <p>スタッフのLINEアカウントを招待。シフト機能が使えるようになる。</p>
+    </div>
+    <div class="flow-step">
+      <div class="flow-dot"></div>
+      <p class="flow-num">STEP 04</p>
+      <h4>稼働スタート</h4>
+      <p>設定完了。AIエージェントが今日から予約対応・シフト組みを引き受ける。</p>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <p class="section-label">Pricing</p>
+  <h2>シンプルな料金体系</h2>
+  <div class="pricing-grid">
+    <div class="plan">
+      <p class="plan-name">FREE</p>
+      <div class="plan-price">¥0<span>/月</span></div>
+      <p class="plan-desc">まず試してみたい店舗向け。予約対応だけ自動化したい方に。</p>
+      <div class="plan-divider"></div>
+      <ul class="plan-features">
+        <li>LINE予約エージェント</li>
+        <li>予約台帳（月50件まで）</li>
+        <li>基本的なFAQ回答</li>
+        <li class="muted">シフト繁忙予測</li>
+        <li class="muted">MEOエージェント</li>
+        <li class="muted">人件費レポート</li>
+      </ul>
+      <a href="#" class="plan-cta">無料で始める</a>
+    </div>
+    <div class="plan featured">
+      <span class="plan-badge">人気</span>
+      <p class="plan-name">STANDARD</p>
+      <div class="plan-price">¥5,500<span>/月</span></div>
+      <p class="plan-desc">予約からシフトまで。毎週の手作業を根こそぎ自動化。</p>
+      <div class="plan-divider"></div>
+      <ul class="plan-features">
+        <li>LINE予約エージェント（無制限）</li>
+        <li>リマインダー自動送信</li>
+        <li>シフト×繁忙予測エージェント</li>
+        <li>スタッフLINE希望収集</li>
+        <li>月次人件費レポート</li>
+        <li class="muted">MEOエージェント</li>
+      </ul>
+      <a href="#" class="plan-cta">14日間無料で試す</a>
+    </div>
+    <div class="plan">
+      <p class="plan-name">PREMIUM</p>
+      <div class="plan-price">¥9,800<span>/月</span></div>
+      <p class="plan-desc">全エージェント込み。集客〜リピートまで全部AIに任せる。</p>
+      <div class="plan-divider"></div>
+      <ul class="plan-features">
+        <li>Standardの全機能</li>
+        <li>MEOエージェント</li>
+        <li>Googleマップ口コミ返信生成</li>
+        <li>Googleビジネス定期投稿</li>
+        <li>優先サポート</li>
+        <li>多店舗対応（+¥3,000/店）</li>
+      </ul>
+      <a href="#" class="plan-cta">14日間無料で試す</a>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2>今日から、業務を<br><em style="font-style:normal;color:var(--amber)">AIに任せよう。</em></h2>
+  <p>初期費用ゼロ。最短1日で導入完了。<br>いつでも解約できます。</p>
+  <a href="#" class="btn-primary" style="font-size:1rem; padding:1rem 2.8rem;">無料プランで始める</a>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Food<span>AI</span></div>
+  <p>© 2025 FoodAI. All rights reserved.</p>
+</footer>
+
+<script>
+// Forecast bars
+const bars = [
+  {h:20, label:'11'}, {h:45, label:'12', peak:true}, {h:40, label:'13', peak:true},
+  {h:15, label:'14'}, {h:10, label:'15'}, {h:30, label:'17'},
+  {h:70, label:'18', peak:true}, {h:90, label:'19', peak:true},
+  {h:85, label:'20', peak:true}, {h:60, label:'21'}, {h:30, label:'22'}
+];
+const container = document.getElementById('forecastBars');
+if (container) {
+  bars.forEach(b => {
+    const col = document.createElement('div');
+    col.className = 'bar-col';
+    const bar = document.createElement('div');
+    bar.className = 'bar' + (b.peak ? ' peak' : '');
+    bar.style.height = b.h + '%';
+    const lbl = document.createElement('div');
+    lbl.className = 'bar-label';
+    lbl.textContent = b.label;
+    col.appendChild(bar);
+    col.appendChild(lbl);
+    container.appendChild(col);
+  });
+}
+
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.style.opacity = '1';
+      e.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold: 0.15 });
+
+document.querySelectorAll('.agent-card, .plan, .flow-step, .problem-item').forEach(el => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(20px)';
+  el.style.transition = 'opacity .6s ease, transform .6s ease';
+  observer.observe(el);
+});
+</script>
+</body>
+</html>
