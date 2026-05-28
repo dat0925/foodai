@@ -564,7 +564,29 @@
   .rev-table tr:last-child td { border-bottom: none; }
   .rev-table td:first-child { font-family: 'Noto Sans JP', sans-serif; font-size: .88rem; color: var(--mist); }
 
-  .rev-notes {
+  .rev-breakdown {
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07);
+    border-radius: 6px; padding: .9rem 1rem; margin-top: .6rem;
+  }
+  .rev-breakdown-title {
+    font-size: .7rem; color: var(--mist); letter-spacing: .08em;
+    margin-bottom: .6rem;
+  }
+  .rev-breakdown-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: .3rem 0;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    font-size: .82rem;
+  }
+  .rev-breakdown-row:last-child { border-bottom: none; padding-top: .5rem; font-weight: 500; }
+  .rev-breakdown-row.total { border-top: 1px solid rgba(255,255,255,.1); margin-top: .2rem; }
+  .rev-breakdown-name { color: rgba(240,232,218,.65); display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+  .rev-breakdown-val { font-family: 'Inter', sans-serif; color: var(--cream); flex-shrink: 0; }
+  .rev-breakdown-row.total .rev-breakdown-val { color: #E05555; }
+  .rev-tag {
+    font-size: .62rem; background: rgba(212,136,58,.2); color: var(--amber);
+    padding: .1rem .4rem; border-radius: 3px; letter-spacing: .04em; white-space: nowrap;
+  }
     background: rgba(212,136,58,.05); border: 1px solid rgba(212,136,58,.12);
     border-radius: 8px; padding: 1.4rem 1.8rem;
   }
@@ -996,9 +1018,30 @@ function toggleRevenue() {
 }
 
 const REV_PLANS = [
-  { key:'free',     name:'FREE',     price:0,    costBase:300  },
-  { key:'standard', name:'STANDARD', price:5500, costBase:1200 },
-  { key:'premium',  name:'PREMIUM',  price:9800, costBase:2200 },
+  {
+    key:'free', name:'FREE', price:0, costBase:300,
+    breakdown:[
+      { name:'Claude API', detail:'¥2×100回', val:200 },
+      { name:'インフラ按分', detail:'', val:100 },
+    ]
+  },
+  {
+    key:'standard', name:'STANDARD', price:5500, costBase:1200,
+    breakdown:[
+      { name:'Claude API', detail:'¥3×300回', val:900, tag:'SLA上限' },
+      { name:'LINE Messaging API', detail:'', val:100 },
+      { name:'インフラ・その他', detail:'', val:200 },
+    ]
+  },
+  {
+    key:'premium', name:'PREMIUM', price:9800, costBase:2200,
+    breakdown:[
+      { name:'Claude API', detail:'¥3×500回+MEO', val:1800, tag:'SLA上限' },
+      { name:'LINE Messaging API', detail:'', val:100 },
+      { name:'インフラ・その他', detail:'', val:200 },
+      { name:'MEO処理', detail:'Googleビジネス連携', val:100 },
+    ]
+  },
 ];
 
 function revFmt(n) {
@@ -1032,6 +1075,17 @@ function renderRevenue() {
     const p = r.plan;
     const mc = r.margin >= 70 ? '#3DBD7A' : r.margin >= 40 ? 'var(--amber)' : '#E05555';
     const isFeatured = p.key === 'standard';
+
+    const breakdownRows = p.breakdown.map(b => `
+      <div class="rev-breakdown-row">
+        <span class="rev-breakdown-name">
+          ${b.name}
+          ${b.detail ? `<span style="font-size:.72rem;color:var(--mist)">${b.detail}</span>` : ''}
+          ${b.tag ? `<span class="rev-tag">${b.tag}</span>` : ''}
+        </span>
+        <span class="rev-breakdown-val">${revFmt(b.val)}</span>
+      </div>`).join('');
+
     return `
     <div class="rev-plan-card ${isFeatured ? 'featured' : ''}">
       <div class="rev-plan-top">
@@ -1048,9 +1102,16 @@ function renderRevenue() {
           <div class="rev-bar-wrap"><div class="rev-bar" style="width:${Math.round(r.revenue/maxRev*100)}%;background:#3DBD7A"></div></div>
         </div>
         <div class="rev-metric">
-          <div class="rev-metric-label">月額原価（API・インフラ）</div>
+          <div class="rev-metric-label">月額原価</div>
           <div class="rev-metric-value cost">${revFmt(r.cost)}</div>
-          <div class="rev-bar-wrap"><div class="rev-bar" style="width:${Math.round(r.cost/maxRev*100)}%;background:#E05555"></div></div>
+          <div class="rev-breakdown">
+            <div class="rev-breakdown-title">内訳</div>
+            ${breakdownRows}
+            <div class="rev-breakdown-row total">
+              <span class="rev-breakdown-name" style="color:var(--cream)">合計</span>
+              <span class="rev-breakdown-val">${revFmt(r.cost)}</span>
+            </div>
+          </div>
         </div>
         <div class="rev-divider"></div>
         <div class="rev-metric">
