@@ -9,9 +9,9 @@ https://supabase.com/dashboard/project/sfhtvtcmgueystyuhzvd/settings/vault
 
 | Name | Value |
 |------|-------|
-| `LINE_CHANNEL_SECRET` | （LINEのChannel Secret） |
-| `LINE_CHANNEL_ACCESS_TOKEN` | （LINEのChannel Access Token） |
-| `ANTHROPIC_API_KEY` | （Claude APIキー） |
+| `FOODAI_LINE_CHANNEL_SECRET` | （LINEのChannel Secret） |
+| `FOODAI_LINE_ACCESS_TOKEN` | （LINEのChannel Access Token） |
+| `FOODAI_ANTHROPIC_API_KEY` | （Claude APIキー） |
 | `FOODAI_SHOP_ID` | `a1b2c3d4-0000-0000-0000-000000000001` |
 
 ※ `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` はEdge Functionsに自動で入ります。

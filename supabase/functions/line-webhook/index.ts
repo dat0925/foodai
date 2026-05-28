@@ -1,12 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // ── 環境変数
-const LINE_CHANNEL_SECRET    = Deno.env.get('LINE_CHANNEL_SECRET')!
-const LINE_CHANNEL_ACCESS_TOKEN = Deno.env.get('LINE_CHANNEL_ACCESS_TOKEN')!
-const SUPABASE_URL           = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE_KEY   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const ANTHROPIC_API_KEY      = Deno.env.get('ANTHROPIC_API_KEY')!
-const SHOP_ID                = Deno.env.get('FOODAI_SHOP_ID')!
+const LINE_CHANNEL_SECRET       = Deno.env.get('FOODAI_LINE_CHANNEL_SECRET')!
+const LINE_CHANNEL_ACCESS_TOKEN = Deno.env.get('FOODAI_LINE_ACCESS_TOKEN')!
+const SUPABASE_URL              = Deno.env.get('SUPABASE_URL')!
+const SUPABASE_SERVICE_KEY      = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const ANTHROPIC_API_KEY         = Deno.env.get('FOODAI_ANTHROPIC_API_KEY')!
+const SHOP_ID                   = Deno.env.get('FOODAI_SHOP_ID')!
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
