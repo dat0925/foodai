@@ -2057,11 +2057,10 @@ async function callAI(userText) {
 
   try {
     const systemPrompt = await buildAiContext()
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(FOODAI_SUPABASE_URL + '/functions/v1/foodai-ai-proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + FOODAI_ANON_KEY },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
         max_tokens: 1024,
         system: systemPrompt,
         messages: [{ role: 'user', content: userText }]
