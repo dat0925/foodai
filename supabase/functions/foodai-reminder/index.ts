@@ -49,8 +49,19 @@ Deno.serve(async (req) => {
   const hour = currentHourJST()
   const results: string[] = []
 
-  // ── 前日リマインダー（18時台に実行）
-  if (hour >= 18 && hour < 19) {
+  // 店舗のリマインダー設定を取得
+  const { data: shop } = await supabase
+    .from('foodai_shops')
+    .select('reminder_settings')
+    .eq('id', SHOP_ID)
+    .single()
+
+  const settings  = shop?.reminder_settings ?? {}
+  const dayBefore = settings.day_before ?? { enabled: true, hour: 18 }
+  const dayOf     = settings.day_of     ?? { enabled: true, hour: 9  }
+
+  // ── 前日リマインダー
+  if (dayBefore.enabled && hour === dayBefore.hour) {
     const tomorrow = tomorrowJST()
     const { data: reservations } = await supabase
       .from('foodai_reservations')
@@ -80,8 +91,8 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ── 当日リマインダー（9時台に実行）
-  if (hour >= 9 && hour < 10) {
+  // ── 当日リマインダー
+  if (dayOf.enabled && hour === dayOf.hour) {
     const today = todayJST()
     const { data: reservations } = await supabase
       .from('foodai_reservations')
