@@ -52,6 +52,7 @@ body {
 .sidebar.collapsed .sidebar-bottom-text { display: none; }
 .sidebar.collapsed .nav-item { justify-content: center; padding: .7rem 0; }
 .sidebar.collapsed .sidebar-logo { padding: 0 0 1.2rem; justify-content: center; }
+.sidebar.collapsed .sidebar-logo .sidebar-logo-text { display: none; }
 .sidebar.collapsed .sidebar-section { padding: .6rem .4rem 0; }
 .sidebar.collapsed .sidebar-bottom { padding: .8rem .4rem; }
 .sidebar.collapsed .shop-info { justify-content: center; }
@@ -440,7 +441,30 @@ tr:hover td { background: rgba(255,255,255,.02); }
 }
 .quick-btn:hover { background: rgba(212,136,58,.2); }
 
-/* ── SEAT SETTINGS PANEL ── */
+/* ── QR POPOVER ── */
+.qr-popover {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.qr-popover.show { opacity: 1; pointer-events: all; }
+.qr-popover-box {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 2rem; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 1rem;
+  transform: translateY(12px); transition: transform .2s;
+}
+.qr-popover.show .qr-popover-box { transform: translateY(0); }
+.qr-popover-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; }
+.qr-popover-sub { font-size: .78rem; color: var(--mist); line-height: 1.7; }
+.qr-popover img { border-radius: 10px; border: 3px solid white; }
+.qr-popover-close {
+  font-size: .78rem; color: var(--mist); cursor: pointer;
+  padding: .3rem .8rem; border-radius: 4px; border: 1px solid var(--border);
+  background: none; transition: all .15s; margin-top: .5rem;
+}
+.qr-popover-close:hover { color: var(--cream); border-color: rgba(255,255,255,.2); }
 .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 @media (max-width: 900px) { .settings-grid { grid-template-columns: 1fr; } }
 
@@ -627,6 +651,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="topbar-title" id="panelTitle">ダッシュボード</div>
     </div>
     <div class="topbar-right">
+      <button onclick="openQR()" style="background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--mist);border-radius:6px;padding:.3rem .7rem;font-size:.75rem;cursor:pointer;display:flex;align-items:center;gap:.3rem;transition:all .15s;font-family:inherit" onmouseover="this.style.color='var(--cream)'" onmouseout="this.style.color='var(--mist)'">📱 スマホで開く</button>
       <a href="../index.html" class="topbar-lp-link">↗ <span>サービスサイト</span></a>
       <span class="badge badge-green">● 稼働中</span>
       <span class="topbar-date" style="font-size:.8rem;color:var(--mist)" id="topbarDate"></span>
@@ -1000,6 +1025,17 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
   </div><!-- /content -->
 </div><!-- /main -->
+
+<!-- QR ポップオーバー -->
+<div class="qr-popover" id="qrPopover" onclick="closeQR(event)">
+  <div class="qr-popover-box">
+    <div class="qr-popover-title">スマホでダッシュボードを開く</div>
+    <div class="qr-popover-sub">QRコードを読み取ってください<br>PINコードでログインできます</div>
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://food.taskra.jp/app/" width="180" height="180" alt="Dashboard QR">
+    <div style="font-size:.72rem;color:var(--mist)">food.taskra.jp/app/</div>
+    <button class="qr-popover-close" onclick="closeQR()">閉じる</button>
+  </div>
+</div>
 
 <!-- トースト通知 -->
 <div class="toast" id="toast"></div>
@@ -1579,6 +1615,14 @@ document.getElementById('aiInput').addEventListener('keydown', e => {
 document.getElementById('lineInput').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendOwnerReply() }
 })
+
+// ── QRポップオーバー
+function openQR() { document.getElementById('qrPopover').classList.add('show') }
+function closeQR(e) {
+  if (!e || e.target === document.getElementById('qrPopover') || e.currentTarget.tagName === 'BUTTON') {
+    document.getElementById('qrPopover').classList.remove('show')
+  }
+}
 
 // ── 初期読み込み
 loadDashboard()
