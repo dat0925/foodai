@@ -441,6 +441,59 @@ tr:hover td { background: rgba(255,255,255,.02); }
 }
 .quick-btn:hover { background: rgba(212,136,58,.2); }
 
+/* ── STAFF PANEL ── */
+.staff-grid {
+  display: grid; grid-template-columns: 1fr 320px; gap: 1.5rem;
+}
+@media (max-width: 900px) { .staff-grid { grid-template-columns: 1fr; } }
+
+.staff-card {
+  display: flex; align-items: center; gap: 1rem;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 1rem 1.2rem;
+  transition: border-color .15s;
+}
+.staff-card:hover { border-color: rgba(212,136,58,.3); }
+.staff-avatar {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; flex-shrink: 0;
+}
+.staff-info { flex: 1; min-width: 0; }
+.staff-name { font-size: .9rem; font-weight: 500; }
+.staff-meta { font-size: .72rem; color: var(--mist); margin-top: .2rem; display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+.role-badge { font-size: .68rem; padding: .15rem .5rem; border-radius: 10px; font-weight: 500; }
+.role-hall    { background: rgba(212,136,58,.15); color: var(--amber); }
+.role-kitchen { background: rgba(61,189,122,.15);  color: var(--green); }
+.role-manager { background: rgba(123,157,224,.15); color: #7B9DE0; }
+.line-linked { font-size: .68rem; color: var(--line); display: flex; align-items: center; gap: .3rem; }
+
+.staff-actions { display: flex; gap: .4rem; flex-shrink: 0; }
+.icon-btn {
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--mist); cursor: pointer; width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .8rem; transition: all .15s;
+}
+.icon-btn:hover { color: var(--cream); border-color: rgba(255,255,255,.2); }
+.icon-btn.danger:hover { color: var(--red); border-color: rgba(224,85,85,.3); }
+
+.staff-form-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 1.4rem; position: sticky; top: 0;
+}
+.staff-form-title {
+  font-family: 'Syne', sans-serif; font-size: .88rem; font-weight: 700;
+  margin-bottom: 1.2rem;
+}
+.summary-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .5rem 0; border-bottom: 1px solid rgba(255,255,255,.04);
+  font-size: .8rem;
+}
+.summary-row:last-child { border-bottom: none; }
+.summary-val { font-family: 'Inter', sans-serif; font-weight: 600; color: var(--amber); }
+
 /* ── QR POPOVER ── */
 .qr-popover {
   position: fixed; inset: 0; z-index: 200;
@@ -622,6 +675,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <div class="sidebar-label">管理</div>
     <div class="nav-item" data-panel="seats">
       <span class="nav-icon">🪑</span><span class="nav-text">空席設定</span>
+    </div>
+    <div class="nav-item" data-panel="staff">
+      <span class="nav-icon">👤</span><span class="nav-text">スタッフ管理</span>
     </div>
     <div class="nav-item" data-panel="ai">
       <span class="nav-icon">✦</span><span class="nav-text">AIアシスタント</span>
@@ -991,6 +1047,88 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
     </div>
 
+    <!-- STAFF -->
+    <div class="panel" id="panel-staff">
+
+      <!-- サマリー -->
+      <div class="stats-row" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card">
+          <div class="stat-label">スタッフ数</div>
+          <div class="stat-value" id="staff-stat-count">—<span style="font-size:1rem;color:var(--mist)">名</span></div>
+          <div class="stat-sub" id="staff-stat-roles">読み込み中...</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">平均時給</div>
+          <div class="stat-value" id="staff-stat-avg-wage">—<span style="font-size:1rem;color:var(--mist)">円</span></div>
+          <div class="stat-sub" id="staff-stat-wage-range">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">LINE連携済み</div>
+          <div class="stat-value" id="staff-stat-line">—<span style="font-size:1rem;color:var(--mist)">名</span></div>
+          <div class="stat-sub">シフト希望をLINEで収集可能</div>
+        </div>
+      </div>
+
+      <div class="staff-grid">
+        <!-- 左：スタッフ一覧 -->
+        <div style="display:flex;flex-direction:column;gap:.7rem">
+          <div class="section-header" style="margin-bottom:0">
+            <div class="section-title">スタッフ一覧</div>
+            <button class="btn-sm btn-amber" onclick="openStaffForm()">＋ 追加</button>
+          </div>
+          <div id="staffList">
+            <div style="text-align:center;color:var(--mist);padding:2rem;font-size:.85rem">読み込み中...</div>
+          </div>
+        </div>
+
+        <!-- 右：追加・編集フォーム -->
+        <div class="staff-form-card" id="staffFormCard">
+          <div class="staff-form-title" id="staffFormTitle">＋ スタッフを追加</div>
+
+          <div class="form-row">
+            <div class="form-label">名前</div>
+            <input class="form-input" type="text" id="sf-name" placeholder="例: 田中 花子">
+          </div>
+          <div class="form-row">
+            <div class="form-label">役職</div>
+            <select class="form-input" id="sf-role">
+              <option value="hall">ホール</option>
+              <option value="kitchen">キッチン</option>
+              <option value="manager">店長</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-label">時給（円）</div>
+            <input class="form-input" type="number" id="sf-wage" min="800" max="5000" placeholder="1100">
+          </div>
+          <div class="form-row">
+            <div class="form-label">LINE User ID（任意）</div>
+            <input class="form-input" type="text" id="sf-line" placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+            <div style="font-size:.68rem;color:var(--mist);margin-top:.3rem">設定するとシフト希望をLINEで収集できます</div>
+          </div>
+
+          <!-- 時給プレビュー -->
+          <div style="background:rgba(212,136,58,.06);border:1px solid rgba(212,136,58,.15);border-radius:8px;padding:1rem;margin:1rem 0">
+            <div style="font-size:.68rem;color:var(--mist);margin-bottom:.5rem;letter-spacing:.06em">コスト試算（月）</div>
+            <div class="summary-row">
+              <span>週5日 × 8時間</span>
+              <span class="summary-val" id="preview-wage-full">—</span>
+            </div>
+            <div class="summary-row">
+              <span>週3日 × 5時間</span>
+              <span class="summary-val" id="preview-wage-part">—</span>
+            </div>
+          </div>
+
+          <input type="hidden" id="sf-editing-id">
+          <div style="display:flex;gap:.6rem">
+            <button class="btn-sm btn-amber" style="flex:1;padding:.6rem" onclick="saveStaff()">保存する</button>
+            <button class="btn-sm btn-outline" onclick="resetStaffForm()">クリア</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- AI ASSISTANT -->
     <div class="panel" id="panel-ai">
       <div class="ai-chat">
@@ -1134,7 +1272,7 @@ function closeSidebar() {
 const titles = {
   dashboard: 'ダッシュボード', reservation: 'LINE予約エージェント',
   shift: 'シフト×繁忙予測', meo: 'MEOエージェント',
-  seats: '空席設定', ai: 'AIアシスタント'
+  seats: '空席設定', staff: 'スタッフ管理', ai: 'AIアシスタント'
 }
 document.querySelectorAll('.nav-item').forEach(item => {
   item.addEventListener('click', () => {
@@ -1146,6 +1284,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.getElementById('panelTitle').textContent = titles[key]
     if (key === 'reservation') loadReservationPanel()
     if (key === 'seats') loadSeatsPanel()
+    if (key === 'staff') loadStaffPanel()
     if (window.innerWidth <= 768) closeSidebar()
   })
 })
@@ -1616,7 +1755,157 @@ document.getElementById('lineInput').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendOwnerReply() }
 })
 
-// ── QRポップオーバー
+// ──────────────────────────────
+// ★ STAFF MANAGEMENT ★
+// ──────────────────────────────
+const ROLE_LABEL = { hall: 'ホール', kitchen: 'キッチン', manager: '店長' }
+const ROLE_EMOJI = { hall: '🍽️', kitchen: '👨‍🍳', manager: '⭐' }
+
+async function loadStaffPanel() {
+  const { data: staff } = await foodaiDb
+    .from('foodai_staff').select('*')
+    .eq('shop_id', FOODAI_SHOP_ID)
+    .order('created_at')
+
+  const list = staff ?? []
+
+  // サマリー更新
+  const lineLinked = list.filter(s => s.line_user_id).length
+  const avgWage = list.length > 0
+    ? Math.round(list.reduce((s, r) => s + (r.hourly_wage ?? 0), 0) / list.length)
+    : 0
+  const minWage = list.length > 0 ? Math.min(...list.map(s => s.hourly_wage ?? 0)) : 0
+  const maxWage = list.length > 0 ? Math.max(...list.map(s => s.hourly_wage ?? 0)) : 0
+  const hallCount    = list.filter(s => s.role === 'hall').length
+  const kitchenCount = list.filter(s => s.role === 'kitchen').length
+
+  document.getElementById('staff-stat-count').innerHTML =
+    `${list.length}<span style="font-size:1rem;color:var(--mist)">名</span>`
+  document.getElementById('staff-stat-roles').textContent =
+    `ホール ${hallCount}名 / キッチン ${kitchenCount}名`
+  document.getElementById('staff-stat-avg-wage').innerHTML =
+    `${avgWage.toLocaleString()}<span style="font-size:1rem;color:var(--mist)">円</span>`
+  document.getElementById('staff-stat-wage-range').textContent =
+    list.length > 1 ? `${minWage.toLocaleString()} 〜 ${maxWage.toLocaleString()}円` : '—'
+  document.getElementById('staff-stat-line').innerHTML =
+    `${lineLinked}<span style="font-size:1rem;color:var(--mist)">名</span>`
+
+  // 一覧描画
+  const container = document.getElementById('staffList')
+  if (list.length === 0) {
+    container.innerHTML = `<div style="text-align:center;color:var(--mist);padding:2.5rem;font-size:.85rem;background:var(--card);border:1px solid var(--border);border-radius:8px">スタッフがまだ登録されていません</div>`
+    return
+  }
+
+  container.innerHTML = list.map(s => {
+    const roleClass = `role-${s.role ?? 'hall'}`
+    const roleLabel = ROLE_LABEL[s.role] ?? s.role
+    const emoji     = ROLE_EMOJI[s.role] ?? '👤'
+    const lineTag   = s.line_user_id
+      ? `<span class="line-linked">● LINE連携済み</span>`
+      : `<span style="font-size:.68rem;color:var(--mist)">LINE未連携</span>`
+    return `
+      <div class="staff-card">
+        <div class="staff-avatar" style="background:rgba(212,136,58,.1)">${emoji}</div>
+        <div class="staff-info">
+          <div class="staff-name">${s.name}</div>
+          <div class="staff-meta">
+            <span class="role-badge ${roleClass}">${roleLabel}</span>
+            <span style="font-family:'Inter',sans-serif;font-weight:600;color:var(--cream)">¥${(s.hourly_wage ?? 0).toLocaleString()}/h</span>
+            ${lineTag}
+          </div>
+        </div>
+        <div class="staff-actions">
+          <button class="icon-btn" onclick="editStaff(${JSON.stringify(s).replace(/"/g,'&quot;')})" title="編集">✏️</button>
+          <button class="icon-btn danger" onclick="deleteStaff('${s.id}','${s.name}')" title="削除">🗑</button>
+        </div>
+      </div>`
+  }).join('')
+}
+
+// フォームを開く（新規）
+function openStaffForm() {
+  resetStaffForm()
+  document.getElementById('staffFormCard').scrollIntoView({ behavior: 'smooth', block: 'start' })
+  document.getElementById('sf-name').focus()
+}
+
+// 編集モード
+function editStaff(s) {
+  document.getElementById('sf-editing-id').value = s.id
+  document.getElementById('sf-name').value  = s.name ?? ''
+  document.getElementById('sf-role').value  = s.role ?? 'hall'
+  document.getElementById('sf-wage').value  = s.hourly_wage ?? 1100
+  document.getElementById('sf-line').value  = s.line_user_id ?? ''
+  document.getElementById('staffFormTitle').textContent = '✏️ スタッフを編集'
+  updateWagePreview()
+  document.getElementById('staffFormCard').scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+// フォームリセット
+function resetStaffForm() {
+  document.getElementById('sf-editing-id').value = ''
+  document.getElementById('sf-name').value  = ''
+  document.getElementById('sf-role').value  = 'hall'
+  document.getElementById('sf-wage').value  = '1100'
+  document.getElementById('sf-line').value  = ''
+  document.getElementById('staffFormTitle').textContent = '＋ スタッフを追加'
+  updateWagePreview()
+}
+
+// 時給プレビュー更新
+function updateWagePreview() {
+  const wage = parseInt(document.getElementById('sf-wage').value) || 0
+  const full = wage * 8 * 5 * 4   // 週5×8h×4週
+  const part = wage * 5 * 3 * 4   // 週3×5h×4週
+  document.getElementById('preview-wage-full').textContent = `¥${full.toLocaleString()}`
+  document.getElementById('preview-wage-part').textContent = `¥${part.toLocaleString()}`
+}
+
+// 保存
+async function saveStaff() {
+  const editingId = document.getElementById('sf-editing-id').value
+  const name      = document.getElementById('sf-name').value.trim()
+  const role      = document.getElementById('sf-role').value
+  const wage      = parseInt(document.getElementById('sf-wage').value)
+  const lineId    = document.getElementById('sf-line').value.trim() || null
+
+  if (!name) { showToast('名前を入力してください', 'var(--red)'); return }
+  if (!wage || wage < 100) { showToast('時給を正しく入力してください', 'var(--red)'); return }
+
+  const payload = { shop_id: FOODAI_SHOP_ID, name, role, hourly_wage: wage, line_user_id: lineId }
+
+  let error
+  if (editingId) {
+    ;({ error } = await foodaiDb.from('foodai_staff').update(payload).eq('id', editingId))
+  } else {
+    ;({ error } = await foodaiDb.from('foodai_staff').insert(payload))
+  }
+
+  if (error) {
+    showToast('保存に失敗しました', 'var(--red)')
+  } else {
+    showToast(editingId ? '✓ スタッフ情報を更新しました' : '✓ スタッフを追加しました')
+    resetStaffForm()
+    await loadStaffPanel()
+  }
+}
+
+// 削除
+async function deleteStaff(id, name) {
+  if (!confirm(`「${name}」を削除しますか？`)) return
+  const { error } = await foodaiDb.from('foodai_staff').delete().eq('id', id)
+  if (error) { showToast('削除に失敗しました', 'var(--red)') }
+  else { showToast(`✓ ${name} を削除しました`); await loadStaffPanel() }
+}
+
+// 時給入力のリアルタイムプレビュー
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('sf-wage')?.addEventListener('input', updateWagePreview)
+})
+
+// ──────────────────────────────
+// QRポップオーバー
 function openQR() { document.getElementById('qrPopover').classList.add('show') }
 function closeQR(e) {
   if (!e || e.target === document.getElementById('qrPopover') || e.currentTarget.tagName === 'BUTTON') {
