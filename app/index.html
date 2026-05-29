@@ -375,7 +375,42 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .bc-labels { display: flex; gap: 4px; }
 .bc-l { flex: 1; text-align: center; font-size: .55rem; color: var(--mist); }
 
-/* ── AI ASSISTANT ── */
+/* ── LINE QR CARD ── */
+.line-qr-card {
+  background: rgba(6,199,85,.05);
+  border: 1px solid rgba(6,199,85,.18);
+  border-radius: 10px; padding: 1.4rem 1.6rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+}
+.line-qr-card-left { flex: 1; min-width: 0; }
+.line-qr-card-badge {
+  font-size: .72rem; color: #06C755; letter-spacing: .08em; margin-bottom: .6rem;
+  display: flex; align-items: center; gap: .4rem;
+}
+.line-qr-card-title {
+  font-family: 'Inter', sans-serif; font-size: .95rem; font-weight: 700;
+  color: var(--cream); margin-bottom: .4rem;
+}
+.line-qr-card-sub { font-size: .8rem; color: var(--mist); line-height: 1.7; }
+.line-qr-add-btn {
+  display: inline-flex; align-items: center;
+  background: #06C755; color: white; border: none;
+  padding: .5rem 1.1rem; border-radius: 6px;
+  font-size: .8rem; font-weight: 500; cursor: pointer;
+  text-decoration: none; transition: opacity .2s;
+  font-family: inherit;
+}
+.line-qr-add-btn:hover { opacity: .85; }
+.line-qr-card-right {
+  flex-shrink: 0; text-align: center;
+}
+.line-qr-card-right img {
+  border-radius: 8px; border: 2px solid white; display: block;
+}
+@media (max-width: 768px) {
+  .line-qr-card { flex-direction: row; }
+  .line-qr-card-right img { width: 72px; height: 72px; }
+}
 .ai-layout { display: flex; flex-direction: column; height: 100%; }
 .ai-chat {
   background: var(--card); border: 1px solid var(--border);
@@ -499,6 +534,30 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <div class="stat-label">本日の予約</div>
           <div class="stat-value">8<span style="font-size:1rem;color:var(--mist)">件</span></div>
           <div class="stat-sub">来客予測: <span style="color:var(--amber)">32名</span></div>
+        </div>
+      </div>
+
+      <!-- LINE QR カード -->
+      <div class="line-qr-card">
+        <div class="line-qr-card-left">
+          <div class="line-qr-card-badge">
+            <span style="color:#06C755">●</span> LINE予約エージェント 稼働中
+          </div>
+          <div class="line-qr-card-title">お客様にLINEを案内する</div>
+          <div class="line-qr-card-sub">
+            QRコードをレジ横や卓上に置くだけ。<br>
+            友だち追加した瞬間からAIが24時間予約を受け付けます。
+          </div>
+          <div style="display:flex;gap:.7rem;flex-wrap:wrap;margin-top:1.2rem">
+            <a href="https://line.me/R/ti/p/@foodai" class="line-qr-add-btn">
+              友だち追加リンクをコピー
+            </a>
+            <button class="btn-sm btn-outline" onclick="window.print()">印刷する</button>
+          </div>
+        </div>
+        <div class="line-qr-card-right">
+          <img src="../line-qr.png" alt="LINE QR" width="100" height="100">
+          <div style="font-size:.68rem;color:var(--mist);margin-top:.4rem;text-align:center">友だち追加</div>
         </div>
       </div>
 

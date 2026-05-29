@@ -410,6 +410,54 @@
     margin: 1.5rem auto 3rem; max-width: 480px;
     color: var(--mist); line-height: 1.9; font-size: 1.1rem;
   }
+  .cta-actions { margin-bottom: 4rem; }
+
+  .line-trial-box {
+    max-width: 640px; margin: 0 auto;
+    background: rgba(6,199,85,.06);
+    border: 1px solid rgba(6,199,85,.2);
+    border-radius: 16px; padding: 2rem 2.5rem;
+    display: flex; align-items: center; gap: 2.5rem;
+    text-align: left;
+  }
+  .line-trial-left { flex: 1; }
+  .line-trial-label {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .75rem; color: var(--line-green);
+    letter-spacing: .1em; margin-bottom: .8rem;
+  }
+  .line-dot { font-size: .5rem; animation: pulse 2s ease infinite; }
+  .line-trial-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 1.15rem; font-weight: 700;
+    color: var(--cream); line-height: 1.5; margin-bottom: .6rem;
+  }
+  .line-trial-sub {
+    font-size: .85rem; color: var(--mist); line-height: 1.8; margin-bottom: 1.4rem;
+  }
+  .line-add-btn {
+    display: inline-flex; align-items: center; gap: .6rem;
+    background: var(--line-green); color: white;
+    padding: .75rem 1.6rem; border-radius: 8px;
+    font-size: .9rem; font-weight: 500; text-decoration: none;
+    transition: opacity .2s, transform .15s;
+  }
+  .line-add-btn:hover { opacity: .88; transform: translateY(-1px); }
+  .line-trial-qr {
+    flex-shrink: 0; text-align: center;
+  }
+  .line-trial-qr img {
+    border-radius: 10px; border: 3px solid white;
+    display: block;
+  }
+  .line-qr-label {
+    font-size: .7rem; color: var(--mist); margin-top: .5rem; letter-spacing: .06em;
+  }
+  @media (max-width: 600px) {
+    .line-trial-box { flex-direction: column; gap: 1.5rem; padding: 1.5rem; }
+    .line-trial-qr { display: none; }
+    .cta-section { padding: 5rem 1.5rem; }
+  }
 
   /* ── FOOTER ── */
   footer {
@@ -926,7 +974,30 @@
 <section class="cta-section">
   <h2>今日から、業務を<br><em style="font-style:normal;color:var(--amber)">AIに任せよう。</em></h2>
   <p>初期費用ゼロ。最短1日で導入完了。<br>いつでも解約できます。</p>
-  <a href="#" class="btn-primary" style="font-size:1rem; padding:1rem 2.8rem;">無料プランで始める</a>
+
+  <div class="cta-actions">
+    <a href="#pricing" class="btn-primary" style="font-size:1rem;padding:1rem 2.8rem;">無料プランで始める</a>
+  </div>
+
+  <div class="line-trial-box">
+    <div class="line-trial-left">
+      <div class="line-trial-label">
+        <span class="line-dot">●</span> まずLINEで動作を体験する
+      </div>
+      <div class="line-trial-title">AIが予約を受け付ける様子を<br>今すぐ確認できます</div>
+      <div class="line-trial-sub">お客様と同じ画面で、実際にAIと会話してみてください。</div>
+      <!-- モバイル：ボタン -->
+      <a href="https://line.me/R/ti/p/@foodai" class="line-add-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.02 2 11c0 3.27 1.77 6.15 4.46 7.89L6 22l4.26-2.23C10.81 19.92 11.4 20 12 20c5.52 0 10-4.02 10-9S17.52 2 12 2z"/></svg>
+        LINE で友だち追加
+      </a>
+    </div>
+    <!-- デスクトップ：QRコード -->
+    <div class="line-trial-qr">
+      <img src="line-qr.png" alt="LINE友だち追加QR" width="120" height="120">
+      <div class="line-qr-label">カメラで読み取り</div>
+    </div>
+  </div>
 </section>
 
 <!-- REVENUE ACCORDION -->
