@@ -45,7 +45,8 @@ foodai/
 │   └── index.html          # 管理ダッシュボード（food.taskra.jp/app/）
 ├── supabase/
 │   ├── migrations/
-│   │   └── 001_initial.sql # DBテーブル定義
+│   │   ├── 001_initial.sql       # DBテーブル定義
+│   │   └── 002_slot_overrides.sql # 日付×時間特別設定テーブル
 │   ├── functions/
 │   │   ├── foodai-line-webhook/
 │   │   │   └── index.ts    # LINEからのWebhook受信・AI応答・空席チェック
@@ -74,16 +75,36 @@ foodai/
 | `foodai_shifts` | シフト |
 | `foodai_demand_forecasts` | 繁忙予測 |
 | `foodai_conversations` | LINE会話履歴（AIの文脈保持） |
+| `foodai_slot_overrides` | 日付×時間ごとの特別設定（臨時休業・定員変更） |
 
 ### foodai_shops の主要カラム
 ```sql
 capacity_per_slot  int  default 20   -- 1枠あたりの最大受入人数
 slot_minutes       int  default 30   -- 枠の長さ（分）
-opening_hours      jsonb             -- 営業時間
+opening_hours      jsonb             -- 営業時間（曜日別）
 faq                jsonb             -- よくある質問
 line_channel_id    text
 line_channel_secret text
 line_access_token  text
+```
+
+### foodai_slot_overrides の主要カラム
+```sql
+shop_id     uuid
+date        date          -- 対象日
+start_time  time          -- null = 終日
+end_time    time          -- null = 終日
+type        text          -- 'closed' | 'custom'
+capacity    int           -- typeがcustomの時のみ（変更後の定員）
+note        text
+```
+
+### foodai_staff の主要カラム
+```sql
+name         text
+role         text   -- 'hall' | 'kitchen' | 'manager'
+hourly_wage  int    -- 時給（円）
+line_user_id text   -- LINE User ID（シフト希望収集用）
 ```
 
 ### デモ店舗
@@ -108,12 +129,14 @@ slot_minutes: 30
 - 処理フロー:
   1. LINE署名検証
   2. 会話履歴をDBから取得
-  3. Claude APIで返答生成
+  3. Claude APIで返答生成（1回目）
   4. `<CHECK_AVAILABILITY>` タグで空席チェック実行
-     - 空きあり → 予約確定
-     - 満席 → 前後3枠から代替時間を検索して提案
+     - 空きあり → Claude APIを**再呼び出し**して予約確定メッセージを生成
+     - 満席 → 前後6枠から代替時間を時系列順で最大3件検索して提案
+       - 当日の場合は現在時刻以前の枠を除外
+       - 日付は「5月29日（木）」形式で表示
   5. `<RESERVATION>` タグで予約をDBに保存
-  6. LINEに返信
+  6. LINEに返信・会話履歴を保存
 
 ### foodai-send-reply
 - URL: `https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/foodai-send-reply`
@@ -154,21 +177,34 @@ slot_minutes: 30
 - ✅ 本日の予約一覧テーブル
 - ✅ LINE予約パネル（会話履歴・ユーザー一覧・オーナー返信）
 - ✅ LINEQRカード（友だち追加・印刷対応）
+- ✅ 空席設定パネル
+  - 基本設定（定員・枠時間・曜日別営業時間）をDB連携で保存
+  - 日付別残席ビュー（スロットごとの残席バー表示）
+  - 日付×時間の特別設定CRUD（臨時休業・定員変更）
+- ✅ スタッフ管理パネル
+  - スタッフ一覧（役職・時給・LINE連携状況）
+  - 追加・編集・削除
+  - 月間人件費プレビュー
 
 ### デモデータのまま（未接続）
-- ⬜ シフト×繁忙予測パネル
+- ⬜ シフトパネル（カレンダー表示・シフト入力）
 - ⬜ MEOパネル（Premiumプラン用、未実装）
 - ⬜ AIアシスタントパネル（Claude API接続済みだが店舗データはハードコード）
+
+### UI仕様
+- トップバーに「📱 スマホで開く」ボタン → QRコードをポップオーバー表示
+- サイドバーは折りたたみ対応（折りたたんだ状態でもトグルボタン表示）
+- モバイル対応（ハンバーガーメニュー）
 
 ---
 
 ## 現在の完成度（10段階）
 
 ```
-3.5 / 10
+5.0 / 10
 
-完成: LP・DB・LINE予約エージェント（空席管理含む）・ダッシュボード基本
-未着手: Stripe課金・シフト機能・MEO・リマインダー・多店舗対応
+完成: LP・DB・LINE予約エージェント（空席管理含む）・ダッシュボード基本・空席設定・スタッフ管理
+未着手: シフト入力・シフト希望収集・Stripe課金・MEO・リマインダー・多店舗対応
 ```
 
 ---
@@ -176,10 +212,10 @@ slot_minutes: 30
 ## 次に作るべきもの（優先順）
 
 ### Phase 1 残り
-1. **予約リマインダー** — 前日・当日にLINEで自動送信（Supabase Cron）
-2. **AIアシスタントを実データに接続** — shop_idベースで予約データを取得してClaude APIに渡す
-3. **シフトパネルを実データに接続** — foodai_shifts・foodai_staff テーブルを使う
-4. **ダッシュボードの空席設定UI** — capacity_per_slot・slot_minutes をオーナーが画面から変更できるように
+1. **シフト入力UI** — オーナーがカレンダー上でスタッフのシフトを組む（foodai_shiftsに接続）
+2. **シフト希望収集** — LINEでスタッフから希望を収集
+3. **予約リマインダー** — 前日・当日にLINEで自動送信（Supabase Cron）
+4. **AIアシスタントを実データに接続** — shop_idベースで予約データを取得してClaude APIに渡す
 
 ### Phase 2
 5. **Stripe課金** — Free/Standard/Premiumプランの月額課金
@@ -191,18 +227,23 @@ slot_minutes: 30
 ## 空席管理の仕様
 
 ```
-方式: シンプルなスロット管理（Aパターン）
+方式: シンプルなスロット管理
 
 チェックロジック:
   同じ日の同じ枠（slot_minutes分）に確定・pending予約の人数合計を取得
   合計 + 今回の人数 > capacity_per_slot → 満席
-  満席の場合: 前後3枠（delta×slot_minutes分）から空き枠を最大3件検索して提案
+  満席の場合: 前後6枠（候補を時系列順ソート）から空き枠を最大3件検索して提案
+  当日の場合: 現在時刻（JST）以前の枠は代替候補から除外
+
+特別設定（foodai_slot_overrides）が優先:
+  type='closed' → その枠は予約不可
+  type='custom' → capacity を上書き
 
 Edge Function内の処理順序:
   1. Claude APIが <CHECK_AVAILABILITY> タグを出力
   2. Functionがチェック実行
-  3. 空きあり → 通常の予約フローへ
-  4. 満席 → 代替時間を含む返答を即座に返す（Claude APIを再呼び出しせず）
+  3. 空きあり → Claude APIを再呼び出し → 予約確定メッセージ生成
+  4. 満席 → 代替時間を即座に返す（Claude APIを再呼び出しせず）
 ```
 
 ---
@@ -216,6 +257,7 @@ Edge Function内の処理順序:
 - **GitHubへのpush時はPATが必要** → 使い捨てPATを都度発行・使用後即revoke
 - **Taskraとの共存** → テーブル名・環境変数・Edge Function名すべて `foodai_` / `FOODAI_` プレフィックス必須
 - **Edge Function再デプロイ** → Secretsを変更した場合も再デプロイが必要
+- **セレクトボックス** → `option { background: #2A2218; color: var(--cream); }` でダークテーマ対応
 
 ---
 
@@ -223,9 +265,22 @@ Edge Function内の処理順序:
 
 - Syne → **ロゴのみ**使用
 - 数字・データ表示 → **Inter**
-- 見出し → **Shippori Mincho**（serif）
+- 見出し → **Syne**（font-weight: 800）
 - 本文 → **Noto Sans JP**
-- カラーパレット: `--amber: #D4883A`, `--ink: #0E0C0A`, `--cream: #F0E8DA`
+- カラーパレット:
+  ```
+  --bg:      #0E0C0A
+  --surface: #181512
+  --card:    #1E1A16
+  --border:  rgba(255,255,255,.07)
+  --amber:   #D4883A
+  --ember:   #B85C1E
+  --cream:   #F0E8DA
+  --mist:    #7A6F64
+  --green:   #3DBD7A
+  --red:     #E05555
+  --line:    #06C755
+  ```
 - PIN認証: `auth.js` を全ページで読み込み → `requireAuth(() => {})` を呼ぶ
 - Supabaseクライアント（ダッシュボード）:
   ```js
