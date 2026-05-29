@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="../auth.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -517,23 +518,23 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-label">今月の予約数</div>
-          <div class="stat-value">147<span style="font-size:1rem;color:var(--mist)">件</span></div>
-          <div class="stat-sub"><span class="stat-up">↑ 23%</span> 先月比</div>
+          <div class="stat-value" id="stat-month-total">—<span style="font-size:1rem;color:var(--mist)">件</span></div>
+          <div class="stat-sub" id="stat-month-sub">読み込み中...</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">AI自動対応率</div>
-          <div class="stat-value">94<span style="font-size:1rem;color:var(--mist)">%</span></div>
-          <div class="stat-sub">人手対応: 9件のみ</div>
+          <div class="stat-label">今月の確定予約</div>
+          <div class="stat-value" id="stat-confirmed">—<span style="font-size:1rem;color:var(--mist)">件</span></div>
+          <div class="stat-sub" id="stat-confirmed-sub">—</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">今週削減工数</div>
-          <div class="stat-value">4.2<span style="font-size:1rem;color:var(--mist)">h</span></div>
-          <div class="stat-sub"><span class="stat-up">+0.8h</span> 先週比</div>
+          <div class="stat-label">今月の来客数</div>
+          <div class="stat-value" id="stat-guests">—<span style="font-size:1rem;color:var(--mist)">名</span></div>
+          <div class="stat-sub" id="stat-guests-sub">—</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">本日の予約</div>
-          <div class="stat-value">8<span style="font-size:1rem;color:var(--mist)">件</span></div>
-          <div class="stat-sub">来客予測: <span style="color:var(--amber)">32名</span></div>
+          <div class="stat-value" id="stat-today">—<span style="font-size:1rem;color:var(--mist)">件</span></div>
+          <div class="stat-sub" id="stat-today-sub">—</div>
         </div>
       </div>
 
@@ -564,24 +565,17 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div>
         <div class="section-header">
           <div class="section-title">本日の予約一覧</div>
-          <button class="btn-sm btn-outline">すべて見る</button>
+          <button class="btn-sm btn-outline" onclick="loadDashboard()">更新</button>
         </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>時間</th><th>名前</th><th>人数</th><th>経路</th><th>ステータス</th><th>メモ</th>
+                <th>時間</th><th>名前</th><th>人数</th><th>ステータス</th><th>メモ</th>
               </tr>
             </thead>
             <tbody id="reservationTable">
-              <tr><td>11:30</td><td>田中 花子</td><td>2名</td><td>LINE</td><td><span class="status-badge status-confirmed">確定</span></td><td>禁煙希望</td></tr>
-              <tr><td>12:00</td><td>佐藤 一郎</td><td>4名</td><td>LINE</td><td><span class="status-badge status-confirmed">確定</span></td><td>—</td></tr>
-              <tr><td>12:30</td><td>山田 美咲</td><td>2名</td><td>LINE</td><td><span class="status-badge status-pending">未確認</span></td><td>アレルギー確認中</td></tr>
-              <tr><td>18:00</td><td>鈴木 健太</td><td>6名</td><td>LINE</td><td><span class="status-badge status-confirmed">確定</span></td><td>誕生日席希望</td></tr>
-              <tr><td>18:30</td><td>高橋 夫妻</td><td>2名</td><td>LINE</td><td><span class="status-badge status-confirmed">確定</span></td><td>—</td></tr>
-              <tr><td>19:00</td><td>中村 グループ</td><td>8名</td><td>LINE</td><td><span class="status-badge status-confirmed">確定</span></td><td>宴会コース</td></tr>
-              <tr><td>19:30</td><td>渡辺 様</td><td>3名</td><td>LINE</td><td><span class="status-badge status-pending">未確認</span></td><td>—</td></tr>
-              <tr><td>20:00</td><td>伊藤 ファミリー</td><td>4名</td><td>LINE</td><td><span class="status-badge status-cancelled">キャンセル</span></td><td>—</td></tr>
+              <tr><td colspan="5" style="text-align:center;color:var(--mist);padding:2rem">読み込み中...</td></tr>
             </tbody>
           </table>
         </div>
@@ -855,6 +849,81 @@ tr:hover td { background: rgba(255,255,255,.02); }
 </div><!-- /main -->
 
 <script>
+// ── Supabase クライアント（FoodAI専用）
+const FOODAI_SUPABASE_URL = 'https://sfhtvtcmgueystyuhzvd.supabase.co'
+const FOODAI_ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaHR2dGNtZ3VleXN0eXVoenZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg0MDYsImV4cCI6MjA5MDM1NDQwNn0.qsON2xYdDf22LtU-jGd96Ubaif0xzzswC9KnzWndKNw'
+const FOODAI_SHOP_ID      = 'a1b2c3d4-0000-0000-0000-000000000001'
+const foodaiDb = supabase.createClient(FOODAI_SUPABASE_URL, FOODAI_ANON_KEY)
+
+// ── ステータス表示
+const statusLabel = { confirmed:'確定', pending:'未確認', cancelled:'キャンセル', no_show:'未来店' }
+const statusClass = { confirmed:'status-confirmed', pending:'status-pending', cancelled:'status-cancelled', no_show:'status-cancelled' }
+
+// ── ダッシュボードデータ読み込み
+async function loadDashboard() {
+  const today = new Date().toISOString().slice(0, 10)
+  const monthStart = today.slice(0, 7) + '-01'
+
+  // 今月の全予約
+  const { data: monthData } = await foodaiDb
+    .from('foodai_reservations')
+    .select('id, status, party_size')
+    .eq('shop_id', FOODAI_SHOP_ID)
+    .gte('date', monthStart)
+
+  // 本日の予約
+  const { data: todayData } = await foodaiDb
+    .from('foodai_reservations')
+    .select('id, name, time, party_size, status, note')
+    .eq('shop_id', FOODAI_SHOP_ID)
+    .eq('date', today)
+    .order('time', { ascending: true })
+
+  // stats 更新
+  const total     = monthData?.length ?? 0
+  const confirmed = monthData?.filter(r => r.status === 'confirmed').length ?? 0
+  const guests    = monthData?.reduce((s, r) => s + (r.party_size ?? 0), 0) ?? 0
+  const todayCount = todayData?.length ?? 0
+  const todayGuests = todayData?.filter(r => r.status === 'confirmed')
+                                .reduce((s, r) => s + (r.party_size ?? 0), 0) ?? 0
+
+  document.getElementById('stat-month-total').innerHTML =
+    `${total}<span style="font-size:1rem;color:var(--mist)">件</span>`
+  document.getElementById('stat-month-sub').textContent =
+    total === 0 ? 'まだ予約がありません' : `うちキャンセル ${total - confirmed}件`
+
+  document.getElementById('stat-confirmed').innerHTML =
+    `${confirmed}<span style="font-size:1rem;color:var(--mist)">件</span>`
+  document.getElementById('stat-confirmed-sub').textContent =
+    total > 0 ? `確定率 ${Math.round(confirmed/total*100)}%` : '—'
+
+  document.getElementById('stat-guests').innerHTML =
+    `${guests}<span style="font-size:1rem;color:var(--mist)">名</span>`
+  document.getElementById('stat-guests-sub').textContent =
+    confirmed > 0 ? `平均 ${Math.round(guests/confirmed)}名/予約` : '—'
+
+  document.getElementById('stat-today').innerHTML =
+    `${todayCount}<span style="font-size:1rem;color:var(--mist)">件</span>`
+  document.getElementById('stat-today-sub').innerHTML =
+    `来客予測: <span style="color:var(--amber)">${todayGuests}名</span>`
+
+  // 予約テーブル更新
+  const tbody = document.getElementById('reservationTable')
+  if (!todayData || todayData.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--mist);padding:2rem">本日の予約はありません</td></tr>`
+    return
+  }
+  tbody.innerHTML = todayData.map(r => `
+    <tr>
+      <td>${r.time?.slice(0,5) ?? '—'}</td>
+      <td>${r.name}</td>
+      <td>${r.party_size}名</td>
+      <td><span class="status-badge ${statusClass[r.status] ?? ''}">${statusLabel[r.status] ?? r.status}</span></td>
+      <td>${r.note ?? '—'}</td>
+    </tr>
+  `).join('')
+}
+
 // ── Sidebar toggle
 function toggleSidebar() {
   const s = document.getElementById('sidebar');
@@ -1041,6 +1110,9 @@ document.getElementById('aiInput').addEventListener('keydown', e => {
 document.getElementById('lineInput').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendLineMsg(); }
 });
+
+// ── 初期データ読み込み
+loadDashboard();
 </script>
 </body>
 </html>
