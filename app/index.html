@@ -532,6 +532,81 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .summary-row:last-child { border-bottom: none; }
 .summary-val { font-family: 'Inter', sans-serif; font-weight: 600; color: var(--amber); }
 
+/* ── ONBOARDING CARD ── */
+.onboarding-card {
+  background: linear-gradient(135deg, rgba(212,136,58,.08) 0%, rgba(184,92,30,.04) 100%);
+  border: 1px solid rgba(212,136,58,.25);
+  border-radius: 12px; padding: 1.4rem 1.6rem;
+  transition: opacity .4s, transform .4s;
+}
+.onboarding-card.done {
+  opacity: 0; transform: translateY(-8px); pointer-events: none;
+  height: 0; padding: 0; margin: 0; overflow: hidden; border: none;
+}
+.onboarding-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.onboarding-title {
+  font-family: 'Syne', sans-serif; font-size: .95rem; font-weight: 800;
+  display: flex; align-items: center; gap: .6rem;
+}
+.onboarding-dismiss {
+  background: none; border: none; color: var(--mist); cursor: pointer;
+  font-size: .75rem; padding: .2rem .5rem; border-radius: 4px;
+  transition: color .15s;
+}
+.onboarding-dismiss:hover { color: var(--cream); }
+
+/* プログレスバー */
+.onboarding-progress-wrap {
+  display: flex; align-items: center; gap: .8rem; margin-bottom: 1.2rem;
+}
+.onboarding-bar-bg {
+  flex: 1; height: 6px; background: rgba(255,255,255,.08);
+  border-radius: 3px; overflow: hidden;
+}
+.onboarding-bar-fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--amber), #F5A060);
+  transition: width .5s cubic-bezier(.4,0,.2,1);
+}
+.onboarding-count {
+  font-family: 'Inter', sans-serif; font-size: .78rem; font-weight: 600;
+  color: var(--amber); flex-shrink: 0;
+}
+
+/* ステップリスト */
+.onboarding-steps {
+  display: flex; flex-direction: column; gap: .5rem;
+}
+.onboarding-step {
+  display: flex; align-items: center; gap: .9rem;
+  padding: .6rem .8rem; border-radius: 8px;
+  cursor: pointer; transition: background .15s;
+  text-decoration: none; color: inherit;
+}
+.onboarding-step:hover { background: rgba(255,255,255,.04); }
+.onboarding-step.completed { opacity: .5; cursor: default; }
+.onboarding-step.completed:hover { background: none; }
+.step-icon {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .7rem; font-weight: 700;
+  border: 2px solid rgba(255,255,255,.15); color: var(--mist);
+  transition: all .3s;
+}
+.onboarding-step.completed .step-icon {
+  background: var(--green); border-color: var(--green); color: white;
+}
+.onboarding-step.next .step-icon {
+  background: rgba(212,136,58,.2); border-color: var(--amber); color: var(--amber);
+}
+.step-text { font-size: .82rem; flex: 1; }
+.onboarding-step.completed .step-text { text-decoration: line-through; color: var(--mist); }
+.step-arrow { font-size: .75rem; color: var(--mist); }
+.onboarding-step.completed .step-arrow { display: none; }
+
 /* ── QR POPOVER ── */
 .qr-popover {
   position: fixed; inset: 0; z-index: 200;
@@ -759,6 +834,23 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
     <!-- DASHBOARD -->
     <div class="panel active" id="panel-dashboard">
+      <!-- ONBOARDING CARD -->
+      <div class="onboarding-card" id="onboardingCard" style="display:none">
+        <div class="onboarding-header">
+          <div class="onboarding-title">
+            <span>🚀</span> FoodAIをセットアップしよう
+          </div>
+          <button class="onboarding-dismiss" onclick="dismissOnboarding()">後で</button>
+        </div>
+        <div class="onboarding-progress-wrap">
+          <div class="onboarding-bar-bg">
+            <div class="onboarding-bar-fill" id="onboardingBarFill" style="width:0%"></div>
+          </div>
+          <div class="onboarding-count" id="onboardingCount">0 / 5</div>
+        </div>
+        <div class="onboarding-steps" id="onboardingSteps"></div>
+      </div>
+
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-label">今月の予約数</div>
@@ -1349,6 +1441,9 @@ async function loadDashboard() {
   document.getElementById('stat-guests-sub').textContent = confirmed > 0 ? `平均 ${Math.round(guests/confirmed)}名/予約` : '—'
   document.getElementById('stat-today').innerHTML = `${todayCount}<span style="font-size:1rem;color:var(--mist)">件</span>`
   document.getElementById('stat-today-sub').innerHTML = `来客予測: <span style="color:var(--amber)">${todayGuests}名</span>`
+
+  // オンボーディング更新
+  loadOnboarding()
 
   const tbody = document.getElementById('reservationTable')
   if (!todayData || todayData.length === 0) {
@@ -2020,6 +2115,137 @@ document.addEventListener('DOMContentLoaded', () => {
 })
 
 // ──────────────────────────────
+// ★ ONBOARDING ★
+// ──────────────────────────────
+const ONBOARDING_STEPS = [
+  {
+    id: 'line',
+    text: 'LINEを連携して予約を受け付ける',
+    check: async (shop, staff, reservations, notify) => {
+      return !!(shop?.line_access_token)
+    },
+    panel: null,  // LINEコンソールなので外部リンク
+    href: 'https://developers.line.biz/console/',
+  },
+  {
+    id: 'hours',
+    text: '営業時間・定員を設定する',
+    check: async (shop) => {
+      const h = shop?.opening_hours ?? {}
+      return Object.keys(h).length > 0
+    },
+    panel: 'seats',
+  },
+  {
+    id: 'staff',
+    text: 'スタッフを1名以上登録する',
+    check: async (shop, staff) => {
+      return (staff?.length ?? 0) > 0
+    },
+    panel: 'staff',
+  },
+  {
+    id: 'reminder',
+    text: '予約リマインダーをONにする',
+    check: async (shop) => {
+      const s = shop?.reminder_settings ?? {}
+      return s.day_before?.enabled || s.day_of?.enabled
+    },
+    panel: 'notify',
+  },
+  {
+    id: 'reservation',
+    text: 'テスト予約を1件入れてみる',
+    check: async (shop, staff, reservations) => {
+      return (reservations?.length ?? 0) > 0
+    },
+    panel: 'reservation',
+  },
+]
+
+async function loadOnboarding() {
+  // dismissされていたらスキップ
+  if (localStorage.getItem('foodai_onboarding_dismissed') === '1') return
+
+  // データ取得
+  const [{ data: shop }, { data: staff }, { data: reservations }] = await Promise.all([
+    foodaiDb.from('foodai_shops').select('line_access_token, opening_hours, reminder_settings').eq('id', FOODAI_SHOP_ID).single(),
+    foodaiDb.from('foodai_staff').select('id').eq('shop_id', FOODAI_SHOP_ID),
+    foodaiDb.from('foodai_reservations').select('id').eq('shop_id', FOODAI_SHOP_ID).limit(1),
+  ])
+
+  // 各ステップの完了チェック
+  const results = await Promise.all(
+    ONBOARDING_STEPS.map(step => step.check(shop, staff, reservations))
+  )
+  const completedCount = results.filter(Boolean).length
+  const total = ONBOARDING_STEPS.length
+
+  // 全完了ならカードを非表示
+  if (completedCount === total) {
+    document.getElementById('onboardingCard').style.display = 'none'
+    return
+  }
+
+  // カード表示
+  const card = document.getElementById('onboardingCard')
+  card.style.display = ''
+
+  // プログレスバー更新
+  const pct = Math.round(completedCount / total * 100)
+  document.getElementById('onboardingBarFill').style.width = pct + '%'
+  document.getElementById('onboardingCount').textContent = `${completedCount} / ${total}`
+
+  // ステップ描画
+  let firstIncomplete = true
+  const stepsEl = document.getElementById('onboardingSteps')
+  stepsEl.innerHTML = ONBOARDING_STEPS.map((step, i) => {
+    const done = results[i]
+    let cls = 'onboarding-step'
+    let iconContent = done ? '✓' : (i + 1)
+
+    if (done) {
+      cls += ' completed'
+    } else if (firstIncomplete) {
+      cls += ' next'
+      firstIncomplete = false
+    }
+
+    const clickAttr = done ? '' :
+      step.href
+        ? `onclick="window.open('${step.href}','_blank')"`
+        : `onclick="switchPanelFromOnboarding('${step.panel}')"`
+
+    return `<div class="${cls}" ${clickAttr}>
+      <div class="step-icon">${iconContent}</div>
+      <div class="step-text">${step.text}</div>
+      <div class="step-arrow">→</div>
+    </div>`
+  }).join('')
+}
+
+function switchPanelFromOnboarding(panelKey) {
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'))
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'))
+  const navItem = document.querySelector(`.nav-item[data-panel="${panelKey}"]`)
+  if (navItem) navItem.classList.add('active')
+  const panel = document.getElementById('panel-' + panelKey)
+  if (panel) panel.classList.add('active')
+  document.getElementById('panelTitle').textContent = titles[panelKey] ?? panelKey
+  if (panelKey === 'seats') loadSeatsPanel()
+  if (panelKey === 'staff') loadStaffPanel()
+  if (panelKey === 'notify') loadNotifyPanel()
+  if (panelKey === 'reservation') loadReservationPanel()
+}
+
+function dismissOnboarding() {
+  localStorage.setItem('foodai_onboarding_dismissed', '1')
+  const card = document.getElementById('onboardingCard')
+  card.classList.add('done')
+  setTimeout(() => { card.style.display = 'none' }, 400)
+}
+
+// ──────────────────────────────
 // ★ SHIFT MANAGEMENT ★
 // ──────────────────────────────
 const STAFF_COLORS = ['#D4883A','#3DBD7A','#7B9DE0','#E07B9A','#A88AE0','#F5A060','#60C5F5']
@@ -2366,5 +2592,6 @@ loadDashboard()
 </script>
 </body>
 </html>
+
 
 
