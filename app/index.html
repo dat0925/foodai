@@ -361,20 +361,53 @@ tr:hover td { background: rgba(255,255,255,.02); }
   cursor: pointer; transition: background .15s;
 }
 .cal-cell:hover { background: rgba(255,255,255,.04); }
-.cal-cell.lunch { background: rgba(212,136,58,.18); color: var(--amber); }
-.cal-cell.dinner { background: rgba(61,189,122,.15); color: var(--green); }
-.cal-cell.both { background: rgba(184,92,30,.25); color: #F5A060; }
+.cal-cell.shift-draft    { background: rgba(212,136,58,.12); color: var(--amber); }
+.cal-cell.shift-confirmed{ background: rgba(212,136,58,.30); color: #F5C070; font-weight:500; }
+.cal-cell.shift-off      { background: rgba(255,255,255,.02); color: var(--mist); }
 
-.forecast-section { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.forecast-card {
+/* シフト時間サマリー行 */
+.shift-summary-row {
   background: var(--card); border: 1px solid var(--border);
-  border-radius: 8px; padding: 1.2rem;
+  border-radius: 8px; padding: 1rem 1.2rem;
+  display: grid; grid-template-columns: 90px repeat(7,1fr);
+  font-size: .72rem;
 }
-.bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin: 1rem 0 .5rem; }
-.bc { flex: 1; border-radius: 2px 2px 0 0; transition: height .4s; background: rgba(212,136,58,.2); }
-.bc.pk { background: var(--amber); }
-.bc-labels { display: flex; gap: 4px; }
-.bc-l { flex: 1; text-align: center; font-size: .55rem; color: var(--mist); }
+.shift-sum-label { color: var(--mist); display:flex; align-items:center; }
+.shift-sum-cell  { text-align:center; color: var(--amber); font-family:'Inter',sans-serif; font-weight:600; }
+
+/* 週コスト */
+.shift-cost-bar {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 1rem 1.5rem;
+  display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;
+}
+.shift-cost-item { display:flex; flex-direction:column; gap:.2rem; }
+.shift-cost-label { font-size:.68rem; color:var(--mist); letter-spacing:.06em; }
+.shift-cost-val   { font-family:'Inter',sans-serif; font-size:1.1rem; font-weight:700; color:var(--amber); }
+
+/* シフト入力モーダル */
+.shift-modal-overlay {
+  position:fixed; inset:0; z-index:300;
+  background:rgba(0,0,0,.75); backdrop-filter:blur(4px);
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.shift-modal-overlay.show { opacity:1; pointer-events:all; }
+.shift-modal {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:14px; padding:1.6rem; width:300px;
+  transform:translateY(10px); transition:transform .2s;
+}
+.shift-modal-overlay.show .shift-modal { transform:translateY(0); }
+.shift-modal-title {
+  font-family:'Syne',sans-serif; font-size:.95rem; font-weight:700;
+  margin-bottom:1.2rem;
+}
+.shift-time-row { display:grid; grid-template-columns:1fr 16px 1fr; align-items:center; gap:.5rem; margin-bottom:1rem; }
+.shift-modal-sep { text-align:center; color:var(--mist); font-size:.8rem; }
+.shift-modal-actions { display:flex; gap:.5rem; margin-top:1.2rem; }
+.btn-red { background:rgba(224,85,85,.15); color:var(--red); border:1px solid rgba(224,85,85,.3); }
+.btn-red:hover { background:rgba(224,85,85,.25); }
 
 /* ── LINE QR CARD ── */
 .line-qr-card {
@@ -834,102 +867,53 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
     <!-- SHIFT -->
     <div class="panel" id="panel-shift">
+
+      <!-- サマリーカード -->
       <div class="stats-row" style="grid-template-columns:repeat(3,1fr)">
         <div class="stat-card">
-          <div class="stat-label">来週の予測来客数</div>
-          <div class="stat-value">412<span style="font-size:1rem;color:var(--mist)">名</span></div>
-          <div class="stat-sub">土曜ピーク: 約90名</div>
+          <div class="stat-label">今週のシフト登録</div>
+          <div class="stat-value" id="shift-stat-entries">—<span style="font-size:1rem;color:var(--mist)">件</span></div>
+          <div class="stat-sub" id="shift-stat-confirmed-sub">読み込み中...</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">シフト希望収集</div>
-          <div class="stat-value" style="font-size:1.4rem">4/5<span style="font-size:.9rem;color:var(--mist)">名</span></div>
-          <div class="stat-sub"><span style="color:var(--amber)">田中さんが未回答</span></div>
+          <div class="stat-label">今週の総労働時間</div>
+          <div class="stat-value" id="shift-stat-hours">—<span style="font-size:1rem;color:var(--mist)">h</span></div>
+          <div class="stat-sub" id="shift-stat-hours-sub">—</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">推定人件費</div>
-          <div class="stat-value">¥<span style="font-size:1.4rem">148k</span></div>
-          <div class="stat-sub"><span class="stat-down">↑ ¥12k</span> 先週比（要確認）</div>
+          <div class="stat-label">今週の人件費（試算）</div>
+          <div class="stat-value" id="shift-stat-cost">—</div>
+          <div class="stat-sub" id="shift-stat-cost-sub">確定シフトのみ</div>
         </div>
       </div>
+
+      <!-- 週ナビ + アクション -->
+      <div class="section-header">
+        <div class="week-nav">
+          <button class="week-btn" onclick="changeWeek(-1)">‹</button>
+          <span id="weekLabel" style="min-width:200px;text-align:center">—</span>
+          <button class="week-btn" onclick="changeWeek(1)">›</button>
+        </div>
+        <div style="display:flex;gap:.6rem;align-items:center">
+          <span id="weekStatusBadge" class="badge" style="display:none"></span>
+          <button class="btn-sm btn-outline" id="btnConfirmWeek" onclick="confirmWeek()" style="display:none">✓ 週を確定する</button>
+          <button class="btn-sm btn-outline" onclick="loadShiftPanel()">更新</button>
+        </div>
+      </div>
+
+      <!-- グリッド -->
       <div>
-        <div class="section-header">
-          <div style="display:flex;align-items:center;gap:1rem">
-            <div class="week-nav">
-              <button class="week-btn">‹</button>
-              <span>6月9日（月）〜 6月15日（日）</span>
-              <button class="week-btn">›</button>
-            </div>
-          </div>
-          <div style="display:flex;gap:.5rem">
-            <button class="btn-sm btn-outline" onclick="generateShift()">✦ AIシフト生成</button>
-            <button class="btn-sm btn-amber">確定・通知</button>
-          </div>
+        <div class="calendar-grid" id="shiftGrid">
+          <div style="text-align:center;color:var(--mist);padding:2rem;grid-column:1/-1">読み込み中...</div>
         </div>
-        <div class="calendar-grid">
-          <div class="cal-header">
-            <div class="cal-head"></div>
-            <div class="cal-head">月 9</div><div class="cal-head">火 10</div>
-            <div class="cal-head">水 11</div><div class="cal-head">木 12</div>
-            <div class="cal-head">金 13</div><div class="cal-head today">土 14 🔥</div>
-            <div class="cal-head">日 15</div>
-          </div>
-          <div class="cal-row">
-            <div class="cal-staff"><span class="staff-dot" style="background:#D4883A"></span>田中（ホール）</div>
-            <div class="cal-cell lunch">L</div><div class="cal-cell">—</div>
-            <div class="cal-cell lunch">L</div><div class="cal-cell">—</div>
-            <div class="cal-cell dinner">D</div><div class="cal-cell both">L+D</div>
-            <div class="cal-cell lunch">L</div>
-          </div>
-          <div class="cal-row">
-            <div class="cal-staff"><span class="staff-dot" style="background:#3DBD7A"></span>佐藤（ホール）</div>
-            <div class="cal-cell">—</div><div class="cal-cell dinner">D</div>
-            <div class="cal-cell">—</div><div class="cal-cell dinner">D</div>
-            <div class="cal-cell">—</div><div class="cal-cell both">L+D</div>
-            <div class="cal-cell">—</div>
-          </div>
-          <div class="cal-row">
-            <div class="cal-staff"><span class="staff-dot" style="background:#7B9DE0"></span>山田（キッチン）</div>
-            <div class="cal-cell lunch">L</div><div class="cal-cell lunch">L</div>
-            <div class="cal-cell">—</div><div class="cal-cell lunch">L</div>
-            <div class="cal-cell both">L+D</div><div class="cal-cell both">L+D</div>
-            <div class="cal-cell dinner">D</div>
-          </div>
-          <div class="cal-row">
-            <div class="cal-staff"><span class="staff-dot" style="background:#E07B9A"></span>中村（キッチン）</div>
-            <div class="cal-cell dinner">D</div><div class="cal-cell">—</div>
-            <div class="cal-cell dinner">D</div><div class="cal-cell dinner">D</div>
-            <div class="cal-cell dinner">D</div><div class="cal-cell both">L+D</div>
-            <div class="cal-cell dinner">D</div>
-          </div>
-          <div class="cal-row">
-            <div class="cal-staff"><span class="staff-dot" style="background:#A88AE0"></span>渡辺（未回答）</div>
-            <div class="cal-cell" style="opacity:.3">?</div><div class="cal-cell" style="opacity:.3">?</div>
-            <div class="cal-cell" style="opacity:.3">?</div><div class="cal-cell" style="opacity:.3">?</div>
-            <div class="cal-cell" style="opacity:.3">?</div>
-            <div class="cal-cell" style="opacity:.3;background:rgba(212,136,58,.08)">?</div>
-            <div class="cal-cell" style="opacity:.3">?</div>
-          </div>
-        </div>
+
+        <!-- 1日ごとの合計時間 -->
+        <div class="shift-summary-row" id="shiftDaySummary" style="margin-top:.4rem"></div>
       </div>
-      <div class="forecast-section">
-        <div class="forecast-card">
-          <div class="mini-title">土曜 時間帯別来客予測</div>
-          <div class="bar-chart" id="shiftBars"></div>
-          <div class="bc-labels" id="shiftLabels"></div>
-        </div>
-        <div class="forecast-card">
-          <div class="mini-title">AIコメント</div>
-          <div style="font-size:.82rem;line-height:1.9;color:rgba(240,232,218,.8);margin-top:.5rem" id="shiftAiComment">
-            土曜夜（18〜21時）は来客90名超の予測です。現在のシフトでは
-            <span style="color:var(--red)">ホール人員が1名不足</span>する可能性があります。
-            渡辺さんのシフト確認後、追加配置を推奨します。
-          </div>
-          <button class="btn-sm btn-outline" style="margin-top:1rem;font-size:.78rem" onclick="analyzeShift()">✦ 詳細分析を依頼</button>
-        </div>
-      </div>
+
     </div>
 
-    <!-- MEO -->
+    <!-- MEO -->    <!-- MEO -->
     <div class="panel" id="panel-meo">
       <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;gap:1rem;opacity:.6">
         <div style="font-size:3rem">⭐</div>
@@ -1164,6 +1148,30 @@ tr:hover td { background: rgba(255,255,255,.02); }
   </div><!-- /content -->
 </div><!-- /main -->
 
+<!-- シフト入力モーダル -->
+<div class="shift-modal-overlay" id="shiftModal" onclick="closeShiftModal(event)">
+  <div class="shift-modal">
+    <div class="shift-modal-title" id="shiftModalTitle">シフト入力</div>
+    <div style="font-size:.75rem;color:var(--mist);margin-bottom:1rem" id="shiftModalSub"></div>
+    <div class="shift-time-row">
+      <div class="form-row" style="margin:0">
+        <div class="form-label">出勤</div>
+        <input class="form-input" type="time" id="sm-start" value="11:00">
+      </div>
+      <div class="shift-modal-sep">〜</div>
+      <div class="form-row" style="margin:0">
+        <div class="form-label">退勤</div>
+        <input class="form-input" type="time" id="sm-end" value="17:00">
+      </div>
+    </div>
+    <div class="shift-modal-actions">
+      <button class="btn-sm btn-amber" style="flex:1" onclick="saveShiftEntry()">保存</button>
+      <button class="btn-sm btn-red btn-sm" onclick="deleteShiftEntry()" id="smDeleteBtn" style="display:none">削除</button>
+      <button class="btn-sm btn-outline" onclick="closeShiftModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <!-- QR ポップオーバー -->
 <div class="qr-popover" id="qrPopover" onclick="closeQR(event)">
   <div class="qr-popover-box">
@@ -1271,7 +1279,7 @@ function closeSidebar() {
 
 const titles = {
   dashboard: 'ダッシュボード', reservation: 'LINE予約エージェント',
-  shift: 'シフト×繁忙予測', meo: 'MEOエージェント',
+  shift: 'シフト管理', meo: 'MEOエージェント',
   seats: '空席設定', staff: 'スタッフ管理', ai: 'AIアシスタント'
 }
 document.querySelectorAll('.nav-item').forEach(item => {
@@ -1285,6 +1293,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     if (key === 'reservation') loadReservationPanel()
     if (key === 'seats') loadSeatsPanel()
     if (key === 'staff') loadStaffPanel()
+    if (key === 'shift') loadShiftPanel()
     if (window.innerWidth <= 768) closeSidebar()
   })
 })
@@ -1905,6 +1914,203 @@ document.addEventListener('DOMContentLoaded', () => {
 })
 
 // ──────────────────────────────
+// ★ SHIFT MANAGEMENT ★
+// ──────────────────────────────
+const STAFF_COLORS = ['#D4883A','#3DBD7A','#7B9DE0','#E07B9A','#A88AE0','#F5A060','#60C5F5']
+let shiftWeekStart = null
+let shiftStaff     = []
+let shiftData      = {}
+let shiftModalMeta = {}
+
+function getThisMonday() {
+  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+  const day = d.getDay()
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+function changeWeek(delta) {
+  shiftWeekStart.setDate(shiftWeekStart.getDate() + delta * 7)
+  loadShiftPanel()
+}
+function dateStr(d) {
+  return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })
+}
+
+async function loadShiftPanel() {
+  if (!shiftWeekStart) shiftWeekStart = getThisMonday()
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(shiftWeekStart); d.setDate(d.getDate() + i); return d
+  })
+  const weekStart = dateStr(weekDates[0])
+  const weekEnd   = dateStr(weekDates[6])
+  const todayStr  = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })
+
+  const fmt = d => d.toLocaleDateString('ja-JP', { month:'long', day:'numeric' })
+  document.getElementById('weekLabel').textContent =
+    `${fmt(weekDates[0])}（月）〜 ${fmt(weekDates[6])}（日）`
+
+  const { data: staff } = await foodaiDb.from('foodai_staff').select('*')
+    .eq('shop_id', FOODAI_SHOP_ID).order('created_at')
+  shiftStaff = staff ?? []
+
+  const { data: shifts } = await foodaiDb.from('foodai_shifts').select('*')
+    .eq('shop_id', FOODAI_SHOP_ID).gte('date', weekStart).lte('date', weekEnd)
+  shiftData = {}
+  ;(shifts ?? []).forEach(s => { shiftData[`${s.staff_id}_${s.date}`] = s })
+
+  const totalEntries   = shifts?.length ?? 0
+  const confirmedCount = shifts?.filter(s => s.status === 'confirmed').length ?? 0
+  const allConfirmed   = totalEntries > 0 && confirmedCount === totalEntries
+  const hasAnyDraft    = shifts?.some(s => s.status === 'draft')
+
+  document.getElementById('shift-stat-entries').innerHTML =
+    `${totalEntries}<span style="font-size:1rem;color:var(--mist)">件</span>`
+  document.getElementById('shift-stat-confirmed-sub').textContent =
+    totalEntries > 0 ? `うち確定 ${confirmedCount}件` : 'シフトがまだありません'
+
+  const wageMap = {}
+  shiftStaff.forEach(s => { wageMap[s.id] = s.hourly_wage ?? 1100 })
+  let totalHours = 0, totalCost = 0, confirmedCost = 0
+  const dayHours = Array(7).fill(0)
+  ;(shifts ?? []).forEach(s => {
+    const [sh, sm] = s.start_time.split(':').map(Number)
+    const [eh, em] = s.end_time.split(':').map(Number)
+    const hrs  = ((eh * 60 + em) - (sh * 60 + sm)) / 60
+    const cost = hrs * (wageMap[s.staff_id] ?? 1100)
+    totalHours += hrs; totalCost += cost
+    if (s.status === 'confirmed') confirmedCost += cost
+    const dayIdx = weekDates.findIndex(d => dateStr(d) === s.date)
+    if (dayIdx >= 0) dayHours[dayIdx] += hrs
+  })
+
+  document.getElementById('shift-stat-hours').innerHTML =
+    `${totalHours.toFixed(1)}<span style="font-size:1rem;color:var(--mist)">h</span>`
+  document.getElementById('shift-stat-hours-sub').textContent =
+    `1人平均 ${shiftStaff.length > 0 ? (totalHours / shiftStaff.length).toFixed(1) : 0}h`
+  document.getElementById('shift-stat-cost').innerHTML =
+    `¥<span style="font-size:1.3rem">${Math.round(totalCost/1000)}k</span>`
+  document.getElementById('shift-stat-cost-sub').textContent =
+    `確定分 ¥${Math.round(confirmedCost).toLocaleString()}`
+
+  const badge = document.getElementById('weekStatusBadge')
+  const confirmBtn = document.getElementById('btnConfirmWeek')
+  if (allConfirmed) {
+    badge.textContent = '✓ 確定済み'; badge.className = 'badge badge-green'; badge.style.display = ''
+    confirmBtn.style.display = 'none'
+  } else if (hasAnyDraft) {
+    badge.textContent = 'ドラフト中'; badge.className = 'badge badge-amber'; badge.style.display = ''
+    confirmBtn.style.display = ''
+  } else {
+    badge.style.display = 'none'; confirmBtn.style.display = 'none'
+  }
+
+  renderShiftGrid(weekDates, todayStr)
+  const sumRow = document.getElementById('shiftDaySummary')
+  sumRow.innerHTML = `<div class="shift-sum-label">合計</div>` +
+    dayHours.map(h => `<div class="shift-sum-cell">${h > 0 ? h.toFixed(1)+'h' : '—'}</div>`).join('')
+}
+
+function renderShiftGrid(weekDates, todayStr) {
+  const grid = document.getElementById('shiftGrid')
+  const DAY  = ['月','火','水','木','金','土','日']
+  let html = '<div class="cal-header"><div class="cal-head"></div>'
+  weekDates.forEach((d, i) => {
+    const isToday = dateStr(d) === todayStr
+    html += `<div class="cal-head${isToday ? ' today' : ''}">${DAY[i]} ${d.getDate()}</div>`
+  })
+  html += '</div>'
+
+  if (shiftStaff.length === 0) {
+    html += `<div style="text-align:center;color:var(--mist);padding:2rem;grid-column:1/-1">スタッフを先に登録してください</div>`
+    grid.innerHTML = html; return
+  }
+
+  shiftStaff.forEach((staff, si) => {
+    const color = STAFF_COLORS[si % STAFF_COLORS.length]
+    const roleLabel = { hall:'ホール', kitchen:'キッチン', manager:'店長' }[staff.role] ?? staff.role
+    html += `<div class="cal-row"><div class="cal-staff"><span class="staff-dot" style="background:${color}"></span>${staff.name}<span style="font-size:.65rem;color:var(--mist);margin-left:.3rem">(${roleLabel})</span></div>`
+    weekDates.forEach(d => {
+      const ds  = dateStr(d)
+      const key = `${staff.id}_${ds}`
+      const s   = shiftData[key]
+      if (s) {
+        const cls = s.status === 'confirmed' ? 'shift-confirmed' : 'shift-draft'
+        const [sh2, sm2] = s.start_time.split(':').map(Number)
+        const [eh2, em2] = s.end_time.split(':').map(Number)
+        const hrs = ((eh2*60+em2)-(sh2*60+sm2))/60
+        html += `<div class="cal-cell ${cls}" onclick="openShiftModal('${staff.id}','${staff.name}','${ds}')">
+          <div>${s.start_time.slice(0,5)}</div>
+          <div style="font-size:.6rem">〜${s.end_time.slice(0,5)}</div>
+          <div style="font-size:.6rem;opacity:.8">${hrs.toFixed(1)}h</div></div>`
+      } else {
+        html += `<div class="cal-cell" onclick="openShiftModal('${staff.id}','${staff.name}','${ds}')"><div style="font-size:1rem;opacity:.3">＋</div></div>`
+      }
+    })
+    html += '</div>'
+  })
+  grid.innerHTML = html
+}
+
+function openShiftModal(staffId, staffName, date) {
+  const key      = `${staffId}_${date}`
+  const existing = shiftData[key]
+  const d = new Date(date + 'T00:00:00')
+  shiftModalMeta = { staffId, date, existingId: existing?.id ?? null }
+  document.getElementById('shiftModalTitle').textContent = `${staffName} のシフト`
+  document.getElementById('shiftModalSub').textContent =
+    d.toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' })
+  document.getElementById('sm-start').value = existing?.start_time?.slice(0,5) ?? '11:00'
+  document.getElementById('sm-end').value   = existing?.end_time?.slice(0,5)   ?? '17:00'
+  document.getElementById('smDeleteBtn').style.display = existing ? '' : 'none'
+  document.getElementById('shiftModal').classList.add('show')
+}
+function closeShiftModal(e) {
+  if (!e || e.target === document.getElementById('shiftModal')) {
+    document.getElementById('shiftModal').classList.remove('show')
+  }
+}
+async function saveShiftEntry() {
+  const { staffId, date, existingId } = shiftModalMeta
+  const start = document.getElementById('sm-start').value
+  const end   = document.getElementById('sm-end').value
+  if (!start || !end || start >= end) { showToast('時間を正しく入力してください', 'var(--red)'); return }
+  let error
+  if (existingId) {
+    ;({ error } = await foodaiDb.from('foodai_shifts').update({ start_time: start, end_time: end }).eq('id', existingId))
+  } else {
+    ;({ error } = await foodaiDb.from('foodai_shifts').insert({
+      shop_id: FOODAI_SHOP_ID, staff_id: staffId, date, start_time: start, end_time: end, status: 'draft'
+    }))
+  }
+  if (error) { showToast('保存に失敗しました', 'var(--red)'); return }
+  showToast('✓ シフトを保存しました')
+  document.getElementById('shiftModal').classList.remove('show')
+  await loadShiftPanel()
+}
+async function deleteShiftEntry() {
+  const { existingId } = shiftModalMeta
+  if (!existingId || !confirm('このシフトを削除しますか？')) return
+  const { error } = await foodaiDb.from('foodai_shifts').delete().eq('id', existingId)
+  if (error) { showToast('削除に失敗しました', 'var(--red)'); return }
+  showToast('✓ 削除しました')
+  document.getElementById('shiftModal').classList.remove('show')
+  await loadShiftPanel()
+}
+async function confirmWeek() {
+  if (!confirm('この週のドラフトシフトを全て確定しますか？')) return
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(shiftWeekStart); d.setDate(d.getDate() + i); return dateStr(d)
+  })
+  const { error } = await foodaiDb.from('foodai_shifts')
+    .update({ status: 'confirmed' }).eq('shop_id', FOODAI_SHOP_ID).eq('status', 'draft')
+    .gte('date', weekDates[0]).lte('date', weekDates[6])
+  if (error) { showToast('確定に失敗しました', 'var(--red)'); return }
+  showToast('✓ シフトを確定しました')
+  await loadShiftPanel()
+}
+
+// ──────────────────────────────
 // QRポップオーバー
 function openQR() { document.getElementById('qrPopover').classList.add('show') }
 function closeQR(e) {
@@ -1918,3 +2124,4 @@ loadDashboard()
 </script>
 </body>
 </html>
+
