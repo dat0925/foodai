@@ -861,7 +861,7 @@ const statusClass = { confirmed:'status-confirmed', pending:'status-pending', ca
 
 // ── ダッシュボードデータ読み込み
 async function loadDashboard() {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })
   const monthStart = today.slice(0, 7) + '-01'
 
   // 今月の全予約
