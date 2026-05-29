@@ -45,13 +45,17 @@ foodai/
 │   └── index.html          # 管理ダッシュボード（food.taskra.jp/app/）
 ├── supabase/
 │   ├── migrations/
-│   │   ├── 001_initial.sql       # DBテーブル定義
-│   │   └── 002_slot_overrides.sql # 日付×時間特別設定テーブル
+│   │   ├── 001_initial.sql            # DBテーブル定義
+│   │   ├── 002_slot_overrides.sql     # 日付×時間特別設定テーブル
+│   │   ├── 003_reminder_flags.sql     # 予約リマインダー送信済みフラグ
+│   │   └── 004_reminder_settings.sql  # 店舗ごとのリマインダー設定カラム
 │   ├── functions/
 │   │   ├── foodai-line-webhook/
 │   │   │   └── index.ts    # LINEからのWebhook受信・AI応答・空席チェック
-│   │   └── foodai-send-reply/
-│   │       └── index.ts    # オーナーからLINEへの返信送信
+│   │   ├── foodai-send-reply/
+│   │   │   └── index.ts    # オーナーからLINEへの返信送信
+│   │   └── foodai-reminder/
+│   │       └── index.ts    # 予約リマインダー（前日18時・当日9時、DB設定で変更可）
 │   └── SETUP.md            # デプロイ手順書
 ├── docs/
 │   └── DESIGN.md           # システム設計書
@@ -69,50 +73,59 @@ foodai/
 
 | テーブル名 | 内容 |
 |-----------|------|
-| `foodai_shops` | 店舗情報・LINE設定・FAQ・空席設定 |
-| `foodai_reservations` | 予約データ |
+| `foodai_shops` | 店舗情報・LINE設定・FAQ・空席設定・リマインダー設定 |
+| `foodai_reservations` | 予約データ（reminded_day_before / reminded_day_of フラグあり） |
 | `foodai_staff` | スタッフ・時給 |
-| `foodai_shifts` | シフト |
+| `foodai_shifts` | シフト（draft / confirmed） |
 | `foodai_demand_forecasts` | 繁忙予測 |
 | `foodai_conversations` | LINE会話履歴（AIの文脈保持） |
 | `foodai_slot_overrides` | 日付×時間ごとの特別設定（臨時休業・定員変更） |
 
 ### foodai_shops の主要カラム
 ```sql
-capacity_per_slot  int  default 20   -- 1枠あたりの最大受入人数
-slot_minutes       int  default 30   -- 枠の長さ（分）
-opening_hours      jsonb             -- 営業時間（曜日別）
-faq                jsonb             -- よくある質問
-line_channel_id    text
+capacity_per_slot   int    default 20
+slot_minutes        int    default 30
+opening_hours       jsonb  -- 曜日別営業時間
+faq                 jsonb  -- よくある質問
+line_channel_id     text
 line_channel_secret text
-line_access_token  text
+line_access_token   text
+reminder_settings   jsonb  -- {"day_before":{"enabled":true,"hour":18},"day_of":{"enabled":true,"hour":9}}
 ```
 
-### foodai_slot_overrides の主要カラム
+### foodai_reservations の主要カラム
 ```sql
-shop_id     uuid
-date        date          -- 対象日
-start_time  time          -- null = 終日
-end_time    time          -- null = 終日
-type        text          -- 'closed' | 'custom'
-capacity    int           -- typeがcustomの時のみ（変更後の定員）
-note        text
+name                text
+date                date
+time                time
+party_size          int
+status              text   -- confirmed / pending / cancelled / no_show
+line_user_id        text
+reminded_day_before boolean default false
+reminded_day_of     boolean default false
 ```
 
 ### foodai_staff の主要カラム
 ```sql
 name         text
 role         text   -- 'hall' | 'kitchen' | 'manager'
-hourly_wage  int    -- 時給（円）
-line_user_id text   -- LINE User ID（シフト希望収集用）
+hourly_wage  int
+line_user_id text
+```
+
+### foodai_shifts の主要カラム
+```sql
+staff_id    uuid
+date        date
+start_time  time
+end_time    time
+status      text   -- 'draft' | 'confirmed'
 ```
 
 ### デモ店舗
 ```
 shop_id: a1b2c3d4-0000-0000-0000-000000000001
 店舗名: 麺屋 暁
-capacity_per_slot: 20
-slot_minutes: 30
 ```
 
 ### RLSポリシー
@@ -124,24 +137,26 @@ slot_minutes: 30
 ## Edge Functions
 
 ### foodai-line-webhook
-- URL: `https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/foodai-line-webhook`
-- JWT認証: **OFF**（LINE署名検証をコード内で実施）
+- JWT認証: **OFF**
 - 処理フロー:
   1. LINE署名検証
   2. 会話履歴をDBから取得
   3. Claude APIで返答生成（1回目）
-  4. `<CHECK_AVAILABILITY>` タグで空席チェック実行
-     - 空きあり → Claude APIを**再呼び出し**して予約確定メッセージを生成
-     - 満席 → 前後6枠から代替時間を時系列順で最大3件検索して提案
-       - 当日の場合は現在時刻以前の枠を除外
-       - 日付は「5月29日（木）」形式で表示
+  4. `<CHECK_AVAILABILITY>` タグで空席チェック
+     - 空きあり → Claude APIを**再呼び出し**して予約確定メッセージ生成
+     - 満席 → 前後6枠から代替時間を時系列順・最大3件提案（当日は現在時刻以前除外）
   5. `<RESERVATION>` タグで予約をDBに保存
-  6. LINEに返信・会話履歴を保存
+  6. LINEに返信・会話履歴保存
 
 ### foodai-send-reply
-- URL: `https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/foodai-send-reply`
 - JWT認証: **OFF**
-- 処理: オーナーのダッシュボードからLINEへpushメッセージ送信 + 会話履歴に保存
+- 処理: オーナーダッシュボードからLINEへpushメッセージ送信 + 会話履歴保存
+
+### foodai-reminder
+- JWT認証: **OFF**
+- Supabase Cronで毎日2回実行（UTC 9:00 / 0:00 = JST 18:00 / 9:00）
+- DBの `reminder_settings` を参照して時間・ON/OFFを動的に制御
+- 送信済みフラグ（`reminded_day_before` / `reminded_day_of`）で重複送信防止
 
 ---
 
@@ -173,38 +188,35 @@ slot_minutes: 30
 ## ダッシュボード実装状況
 
 ### 完成（実データ接続済み）
-- ✅ ダッシュボードパネル（今月予約数・確定数・来客数・本日予約）
-- ✅ 本日の予約一覧テーブル
+- ✅ ダッシュボードパネル（予約サマリー・本日の予約一覧）
+- ✅ オンボーディングカード（5ステップ・進捗バー・パネル遷移・dismiss対応）
 - ✅ LINE予約パネル（会話履歴・ユーザー一覧・オーナー返信）
 - ✅ LINEQRカード（友だち追加・印刷対応）
-- ✅ 空席設定パネル
-  - 基本設定（定員・枠時間・曜日別営業時間）をDB連携で保存
-  - 日付別残席ビュー（スロットごとの残席バー表示）
-  - 日付×時間の特別設定CRUD（臨時休業・定員変更）
-- ✅ スタッフ管理パネル
-  - スタッフ一覧（役職・時給・LINE連携状況）
-  - 追加・編集・削除
-  - 月間人件費プレビュー
+- ✅ 空席設定パネル（基本設定・日別残席ビュー・特別設定CRUD）
+- ✅ スタッフ管理パネル（一覧・追加・編集・削除・月間人件費プレビュー）
+- ✅ シフト管理パネル（週グリッド・セルタップ入力・ドラフト→確定フロー）
+- ✅ 通知設定パネル（前日/当日ON/OFF・時間変更・Cron SQL自動生成）
 
-### デモデータのまま（未接続）
-- ⬜ シフトパネル（カレンダー表示・シフト入力）
-- ⬜ MEOパネル（Premiumプラン用、未実装）
+### 未完成
 - ⬜ AIアシスタントパネル（Claude API接続済みだが店舗データはハードコード）
+- ⬜ MEOパネル（Premiumプラン用、未実装）
 
 ### UI仕様
-- トップバーに「📱 スマホで開く」ボタン → QRコードをポップオーバー表示
-- サイドバーは折りたたみ対応（折りたたんだ状態でもトグルボタン表示）
+- トップバーに「📱 スマホで開く」→ QRポップオーバー
+- サイドバー折りたたみ対応（折りたたんだ状態でもトグルボタン表示）
 - モバイル対応（ハンバーガーメニュー）
+- セレクトボックス: `option { background: #2A2218; color: var(--cream); }`
 
 ---
 
 ## 現在の完成度（10段階）
 
 ```
-5.0 / 10
+7.0 / 10
 
-完成: LP・DB・LINE予約エージェント（空席管理含む）・ダッシュボード基本・空席設定・スタッフ管理
-未着手: シフト入力・シフト希望収集・Stripe課金・MEO・リマインダー・多店舗対応
+完成: LP・DB・LINE予約エージェント・ダッシュボード全パネル・
+      空席設定・スタッフ管理・シフト管理・通知設定・オンボーディング
+未着手: AIアシスタント実データ接続・シフト希望収集・Stripe課金・MEO・多店舗対応
 ```
 
 ---
@@ -212,15 +224,13 @@ slot_minutes: 30
 ## 次に作るべきもの（優先順）
 
 ### Phase 1 残り
-1. **シフト入力UI** — オーナーがカレンダー上でスタッフのシフトを組む（foodai_shiftsに接続）
-2. **シフト希望収集** — LINEでスタッフから希望を収集
-3. **予約リマインダー** — 前日・当日にLINEで自動送信（Supabase Cron）
-4. **AIアシスタントを実データに接続** — shop_idベースで予約データを取得してClaude APIに渡す
+1. **AIアシスタントを実データに接続** — 予約・シフト・スタッフの実データをClaudeに渡す
 
 ### Phase 2
-5. **Stripe課金** — Free/Standard/Premiumプランの月額課金
-6. **あいさつメッセージ改善** — 友だち追加時のLINEメッセージをFoodAIらしく
-7. **多店舗対応** — shop_idで完全分離されているので拡張しやすい
+2. **シフト希望収集** — LINEでスタッフから希望を収集
+3. **Stripe課金** — Free/Standard/Premiumプランの月額課金
+4. **あいさつメッセージ改善** — 友だち追加時のLINEメッセージをFoodAIらしく
+5. **多店舗対応** — shop_idで完全分離されているので拡張しやすい
 
 ---
 
@@ -239,7 +249,7 @@ slot_minutes: 30
   type='closed' → その枠は予約不可
   type='custom' → capacity を上書き
 
-Edge Function内の処理順序:
+Edge Function処理順序:
   1. Claude APIが <CHECK_AVAILABILITY> タグを出力
   2. Functionがチェック実行
   3. 空きあり → Claude APIを再呼び出し → 予約確定メッセージ生成
@@ -248,25 +258,38 @@ Edge Function内の処理順序:
 
 ---
 
+## オンボーディングの仕様
+
+5ステップをDBから動的にチェック：
+1. LINE連携 → `line_access_token` が設定されているか
+2. 営業時間設定 → `opening_hours` が入力されているか
+3. スタッフ登録 → `foodai_staff` に1件以上あるか
+4. リマインダーON → `reminder_settings` でどちらかがONか
+5. テスト予約 → `foodai_reservations` に1件以上あるか
+
+- 未完了の次のステップをアンバー色でハイライト
+- クリックで該当パネルへ遷移
+- 全完了で自動非表示
+- 「後で」クリックでlocalStorageに記録して非表示
+
+---
+
 ## 開発上の注意点
 
-- **オーナーはiPad/iPhone使用** → スマホ最適化必須、コンソールアクセス不可
+- **オーナーはiPad/iPhone使用** → スマホ最適化必須
 - **コード変更はGitHub経由** → git push後にGitHub Pagesに自動反映（1〜2分）
-- **Edge Functionの変更** → Supabaseダッシュボードでコードを直接編集してDeploy
-- **日付はJST基準** → `new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })` を使う
-- **GitHubへのpush時はPATが必要** → 使い捨てPATを都度発行・使用後即revoke
+- **Edge Functionの変更** → Supabaseダッシュボードで直接編集してDeploy
+- **日付はJST基準** → `new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })`
 - **Taskraとの共存** → テーブル名・環境変数・Edge Function名すべて `foodai_` / `FOODAI_` プレフィックス必須
 - **Edge Function再デプロイ** → Secretsを変更した場合も再デプロイが必要
-- **セレクトボックス** → `option { background: #2A2218; color: var(--cream); }` でダークテーマ対応
 
 ---
 
 ## フロントエンドの設計方針
 
-- Syne → **ロゴのみ**使用
-- 数字・データ表示 → **Inter**
-- 見出し → **Syne**（font-weight: 800）
-- 本文 → **Noto Sans JP**
+- Syne → ロゴ・見出し（font-weight: 800）
+- Inter → 数字・データ表示
+- Noto Sans JP → 本文
 - カラーパレット:
   ```
   --bg:      #0E0C0A
@@ -285,7 +308,7 @@ Edge Function内の処理順序:
 - Supabaseクライアント（ダッシュボード）:
   ```js
   const FOODAI_SUPABASE_URL = 'https://sfhtvtcmgueystyuhzvd.supabase.co'
-  const FOODAI_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'  // app/index.html内
+  const FOODAI_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
   const FOODAI_SHOP_ID  = 'a1b2c3d4-0000-0000-0000-000000000001'
   const foodaiDb = supabase.createClient(FOODAI_SUPABASE_URL, FOODAI_ANON_KEY)
   ```
