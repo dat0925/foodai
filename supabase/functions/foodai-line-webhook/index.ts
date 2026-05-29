@@ -47,7 +47,7 @@ async function getHistory(lineUserId: string) {
     .eq('shop_id', SHOP_ID)
     .eq('line_user_id', lineUserId)
     .order('created_at', { ascending: false })
-    .limit(10)
+    .limit(20)
   return (data ?? []).reverse()
 }
 
@@ -206,8 +206,14 @@ async function chat(lineUserId: string, userMessage: string): Promise<string> {
     timeZone: 'Asia/Tokyo',
   })
 
+  const todayISO = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })
+  const tomorrowISO = new Date(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' }) + 'T00:00:00+09:00')
+  tomorrowISO.setDate(tomorrowISO.getDate() + 1)
+  const tomorrowStr = tomorrowISO.toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })
+
   const systemPrompt = `あなたは「${shop?.name ?? '当店'}」のLINE予約アシスタントです。
-今日は${today}です。
+今日は${today}（${todayISO}）です。
+明日は${tomorrowStr}です。
 
 【あなたの役割】
 お客様のLINEメッセージに対して、予約受付・変更・キャンセル・よくある質問への回答を行います。
@@ -223,13 +229,27 @@ ${JSON.stringify(shop?.faq ?? [])}
 - 予約確定前に必ず空席チェックが必要です
 - 満席の場合は代替時間を提案してください
 
+【日付の解釈ルール - 必ず守ること】
+- お客様が「5/30」「5月30日」と言ったら → ${new Date().getFullYear()}年5月30日 = YYYY-MM-DD形式で正確に変換する
+- お客様が「明日」と言ったら → ${tomorrowStr}
+- お客様が「今日」と言ったら → ${todayISO}
+- 曜日で言われた場合は今週または来週の該当曜日を判断する
+- 日付が不明な場合は推測せず、必ず確認する
+- CHECK_AVAILABILITYタグの date は必ず YYYY-MM-DD 形式で正確に入力すること
+
 【予約受付ルール】
 - 予約に必要な情報: 日時・人数・お名前
 - 情報が不足している場合は、1つずつ丁寧に確認する
+- お客様が日付を指定した場合は、その日付をそのまま使う（勝手に変えない）
 - 情報が揃ったら以下のタグで空席チェックを要求する（お客様には見えません）:
   <CHECK_AVAILABILITY>{"date":"YYYY-MM-DD","time":"HH:MM","party_size":人数}</CHECK_AVAILABILITY>
 - 空席確認後に予約確定する場合は以下のタグを含める（お客様には見えません）:
   <RESERVATION>{"name":"名前","date":"YYYY-MM-DD","time":"HH:MM","party_size":人数}</RESERVATION>
+
+【会話の継続性】
+- 過去の会話の内容を必ず踏まえて返答する
+- お客様が前の返答を訂正・指摘した場合は、その指摘を優先する
+- 同じ内容を繰り返さず、会話の流れに沿って対応する
 
 【返答のルール】
 - 丁寧かつ簡潔に（3〜5行以内）
