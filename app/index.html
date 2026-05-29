@@ -1502,21 +1502,8 @@ document.querySelectorAll('.nav-item').forEach(item => {
 })
 
 // ──────────────────────────────
-// SHIFT (demo)
+// SHIFT (demo bars - 旧デモデータは削除済み)
 // ──────────────────────────────
-const shiftData = [
-  {h:30,l:'11',p:false},{h:65,l:'12',p:true},{h:60,l:'13',p:true},
-  {h:20,l:'15',p:false},{h:55,l:'17',p:false},{h:80,l:'18',p:true},
-  {h:100,l:'19',p:true},{h:95,l:'20',p:true},{h:70,l:'21',p:false}
-]
-const sb = document.getElementById('shiftBars')
-const sl = document.getElementById('shiftLabels')
-if (sb) {
-  shiftData.forEach(d => {
-    const b = document.createElement('div'); b.className = 'bc' + (d.p ? ' pk' : ''); b.style.height = d.h + '%'; sb.appendChild(b)
-    const l = document.createElement('div'); l.className = 'bc-l'; l.textContent = d.l; sl.appendChild(l)
-  })
-}
 function analyzeShift() {
   document.getElementById('shiftAiComment').innerHTML = '<span style="color:var(--amber)">分析中...</span>'
   setTimeout(() => {
