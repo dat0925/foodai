@@ -1321,10 +1321,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
           </div>
         </div>
         <div class="quick-asks">
-          <button class="quick-btn" onclick="quickAsk('今週の売上傾向と来週の予測を教えて')">今週の傾向と来週予測</button>
-          <button class="quick-btn" onclick="quickAsk('シフトの最適化ポイントを教えて')">シフト最適化アドバイス</button>
-          <button class="quick-btn" onclick="quickAsk('最近のキャンセル率が上がっている原因と対策を提案して')">キャンセル率改善策</button>
-          <button class="quick-btn" onclick="quickAsk('来月の繁忙期はいつで、どんな準備が必要か教えて')">来月の繁忙期準備</button>
+          <button class="quick-btn" onclick="quickAsk('本日と明日の予約状況を教えて')">本日・明日の予約</button>
+          <button class="quick-btn" onclick="quickAsk('今月のキャンセル率と改善策を教えて')">キャンセル率と対策</button>
+          <button class="quick-btn" onclick="quickAsk('今週のシフトで人員が足りているか確認して')">シフト人員チェック</button>
+          <button class="quick-btn" onclick="quickAsk('今月の予約データから気になることがあれば教えて')">データから気づき</button>
         </div>
         <div class="messages" id="aiMessages">
           <div class="msg-row bot">
@@ -1917,6 +1917,105 @@ function quickAsk(question) {
   sendAiMessage()
 }
 
+// 実データをDBから取得してシステムプロンプトを生成
+async function buildAiContext() {
+  const todayStr    = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })
+  const monthStart  = todayStr.slice(0, 7) + '-01'
+  const tomorrowStr = (() => {
+    const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+    d.setDate(d.getDate() + 1)
+    return d.toLocaleDateString('sv-SE')
+  })()
+  const weekStart = (() => {
+    const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+    const day = d.getDay()
+    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+    return d.toLocaleDateString('sv-SE')
+  })()
+  const weekEnd = (() => {
+    const d = new Date(weekStart + 'T00:00:00')
+    d.setDate(d.getDate() + 6)
+    return d.toLocaleDateString('sv-SE')
+  })()
+
+  const [
+    { data: shop },
+    { data: monthRes },
+    { data: todayRes },
+    { data: tomorrowRes },
+    { data: staff },
+    { data: shifts },
+  ] = await Promise.all([
+    foodaiDb.from('foodai_shops').select('name, opening_hours, capacity_per_slot, slot_minutes').eq('id', FOODAI_SHOP_ID).single(),
+    foodaiDb.from('foodai_reservations').select('status, party_size, date').eq('shop_id', FOODAI_SHOP_ID).gte('date', monthStart),
+    foodaiDb.from('foodai_reservations').select('name, time, party_size, status').eq('shop_id', FOODAI_SHOP_ID).eq('date', todayStr).order('time'),
+    foodaiDb.from('foodai_reservations').select('name, time, party_size, status').eq('shop_id', FOODAI_SHOP_ID).eq('date', tomorrowStr).order('time'),
+    foodaiDb.from('foodai_staff').select('name, role, hourly_wage').eq('shop_id', FOODAI_SHOP_ID).order('created_at'),
+    foodaiDb.from('foodai_shifts').select('date, start_time, end_time, status, staff_id').eq('shop_id', FOODAI_SHOP_ID).gte('date', weekStart).lte('date', weekEnd),
+  ])
+
+  // 今月サマリー
+  const total      = monthRes?.length ?? 0
+  const confirmed  = monthRes?.filter(r => r.status === 'confirmed').length ?? 0
+  const cancelled  = monthRes?.filter(r => r.status === 'cancelled').length ?? 0
+  const guests     = monthRes?.filter(r => r.status === 'confirmed').reduce((s, r) => s + r.party_size, 0) ?? 0
+  const cancelRate = total > 0 ? Math.round(cancelled / total * 100) : 0
+
+  // スタッフ名マップ
+  const staffMap = {}
+  staff?.forEach(s => { staffMap[s.id] = s.name })
+
+  // 今週シフトサマリー
+  const shiftSummary = (shifts ?? []).map(sh => {
+    const [sh2, sm] = sh.start_time.split(':').map(Number)
+    const [eh, em]  = sh.end_time.split(':').map(Number)
+    const hrs = ((eh * 60 + em) - (sh2 * 60 + sm)) / 60
+    return `${staffMap[sh.staff_id] ?? '?'} ${sh.date} ${sh.start_time.slice(0,5)}〜${sh.end_time.slice(0,5)}(${hrs.toFixed(1)}h) [${sh.status}]`
+  }).join('\n')
+
+  const todayJP    = new Date(todayStr + 'T00:00:00').toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' })
+  const tomorrowJP = new Date(tomorrowStr + 'T00:00:00').toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' })
+
+  const todayList = (todayRes ?? []).length > 0
+    ? todayRes.map(r => `  ${r.time.slice(0,5)} ${r.name} ${r.party_size}名 [${r.status}]`).join('\n')
+    : '  なし'
+  const tomorrowList = (tomorrowRes ?? []).length > 0
+    ? tomorrowRes.map(r => `  ${r.time.slice(0,5)} ${r.name} ${r.party_size}名 [${r.status}]`).join('\n')
+    : '  なし'
+
+  const staffList = (staff ?? []).map(s => {
+    const role = { hall:'ホール', kitchen:'キッチン', manager:'店長' }[s.role] ?? s.role
+    return `  ${s.name}（${role}・時給¥${s.hourly_wage}）`
+  }).join('\n')
+
+  return `あなたは「${shop?.name ?? '麺屋 暁'}」専属のAIアシスタントです。
+以下の実データをもとに、オーナーの質問に日本語で具体的・実用的に回答してください。回答は300字以内で端的に。
+
+【今日】${todayJP}
+
+【今月の予約サマリー】
+- 総予約数: ${total}件 / 確定: ${confirmed}件 / キャンセル: ${cancelled}件（キャンセル率${cancelRate}%）
+- 確定来客数: ${guests}名 / 平均: ${confirmed > 0 ? Math.round(guests/confirmed) : 0}名/予約
+
+【本日の予約（${todayJP}）】
+${todayList}
+
+【明日の予約（${tomorrowJP}）】
+${tomorrowList}
+
+【今週のシフト】
+${shiftSummary || '  データなし'}
+
+【スタッフ】
+${staffList || '  未登録'}
+
+【店舗設定】
+- 1枠の定員: ${shop?.capacity_per_slot ?? 20}名 / 枠時間: ${shop?.slot_minutes ?? 30}分
+- 営業時間: ${JSON.stringify(shop?.opening_hours ?? {})}
+
+データに基づいた具体的なアドバイスをしてください。データがない項目は「データなし」と伝えてください。`
+}
+
 async function callAI(userText) {
   const container = document.getElementById('aiMessages')
   const btn = document.getElementById('aiSendBtn')
@@ -1931,14 +2030,17 @@ async function callAI(userText) {
   container.scrollTop = container.scrollHeight
   btn.disabled = true
 
-  const systemPrompt = `あなたは「FoodAI」という飲食店向けAIエージェントプラットフォームのアシスタントです。
-店舗名は「麺屋 暁」（ラーメン店）。回答は日本語で、具体的な数字やアクションを含めた実用的なアドバイスをしてください。200字以内で端的に。`
-
   try {
+    const systemPrompt = await buildAiContext()
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, system: systemPrompt, messages: [{ role: 'user', content: userText }] })
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userText }]
+      })
     })
     const data = await res.json()
     const reply = data.content?.[0]?.text || 'エラーが発生しました。'
