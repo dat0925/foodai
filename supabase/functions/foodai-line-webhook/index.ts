@@ -117,7 +117,17 @@ async function checkAvailability(date: string, time: string, partySize: number):
     }
     candidates.sort()
 
+    // 当日の場合、現在時刻より過去の枠は除外
+    const nowJST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+    const todayJST = `${nowJST.getFullYear()}-${String(nowJST.getMonth()+1).padStart(2,'0')}-${String(nowJST.getDate()).padStart(2,'0')}`
+    const nowMin = nowJST.getHours() * 60 + nowJST.getMinutes()
+
     for (const altTime of candidates) {
+      // 当日かつ現在時刻以前の枠はスキップ
+      if (date === todayJST) {
+        const [ah2, am2] = altTime.split(':').map(Number)
+        if (ah2 * 60 + am2 <= nowMin) continue
+      }
       const [ah, am] = altTime.split(':').map(Number)
       const altEndMin = ah * 60 + am + slotMins
       const altEnd = `${String(Math.floor(altEndMin / 60)).padStart(2,'0')}:${String(altEndMin % 60).padStart(2,'0')}`
