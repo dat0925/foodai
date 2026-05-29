@@ -244,6 +244,8 @@ async function chat(lineUserId: string, userMessage: string): Promise<string> {
 
   // ── 空席チェック
   const checkMatch = reply.match(/<CHECK_AVAILABILITY>(.+?)<\/CHECK_AVAILABILITY>/s)
+  console.log('Claude reply:', reply.slice(0, 200))
+  console.log('CHECK_AVAILABILITY match:', checkMatch?.[1])
   if (checkMatch) {
     try {
       const req = JSON.parse(checkMatch[1])
