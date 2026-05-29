@@ -1469,7 +1469,9 @@ function toggleSidebar() {
   s.querySelector('.sidebar-toggle-btn').textContent = s.classList.contains('collapsed') ? '⇥' : '⇤'
 }
 function openSidebar() {
-  document.getElementById('sidebar').classList.add('mobile-open')
+  const s = document.getElementById('sidebar')
+  s.classList.remove('collapsed')
+  s.classList.add('mobile-open')
   document.getElementById('sidebarOverlay').classList.add('show')
 }
 function closeSidebar() {
