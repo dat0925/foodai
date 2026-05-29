@@ -2581,57 +2581,32 @@ function updateCronPreview() {
 
   const fnUrl = 'https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/foodai-reminder'
 
-  let sql = '-- 既存のCronを削除してから再登録
-'
-  sql += "select cron.unschedule('foodai-reminder-evening');
-"
-  sql += "select cron.unschedule('foodai-reminder-morning');
-
-"
+  let sql = '-- 既存のCronを削除してから再登録\n'
+  sql += "select cron.unschedule('foodai-reminder-evening');\n"
+  sql += "select cron.unschedule('foodai-reminder-morning');\n\n"
 
   if (dbEnabled) {
-    sql += `-- 前日リマインダー（JST ${dbHour}:00 = UTC ${dbUTC}:00）
-`
-    sql += `select cron.schedule(
-`
-    sql += `  'foodai-reminder-evening',
-`
-    sql += `  '0 ${dbUTC} * * *',
-`
-    sql += `  $$select net.http_post(
-`
-    sql += `    url := '${fnUrl}',
-`
-    sql += `    headers := '{"Content-Type":"application/json"}'::jsonb,
-`
-    sql += `    body := '{}'::jsonb
-`
-    sql += `  );$$
-);
-
-`
+    sql += `-- 前日リマインダー（JST ${dbHour}:00 = UTC ${dbUTC}:00）\n`
+    sql += `select cron.schedule(\n`
+    sql += `  'foodai-reminder-evening',\n`
+    sql += `  '0 ${dbUTC} * * *',\n`
+    sql += `  $$select net.http_post(\n`
+    sql += `    url := '${fnUrl}',\n`
+    sql += `    headers := '{"Content-Type":"application/json"}'::jsonb,\n`
+    sql += `    body := '{}'::jsonb\n`
+    sql += `  );$$\n);\n\n`
   }
 
   if (doEnabled) {
-    sql += `-- 当日リマインダー（JST ${doHour}:00 = UTC ${doUTC}:00）
-`
-    sql += `select cron.schedule(
-`
-    sql += `  'foodai-reminder-morning',
-`
-    sql += `  '0 ${doUTC} * * *',
-`
-    sql += `  $$select net.http_post(
-`
-    sql += `    url := '${fnUrl}',
-`
-    sql += `    headers := '{"Content-Type":"application/json"}'::jsonb,
-`
-    sql += `    body := '{}'::jsonb
-`
-    sql += `  );$$
-);
-`
+    sql += `-- 当日リマインダー（JST ${doHour}:00 = UTC ${doUTC}:00）\n`
+    sql += `select cron.schedule(\n`
+    sql += `  'foodai-reminder-morning',\n`
+    sql += `  '0 ${doUTC} * * *',\n`
+    sql += `  $$select net.http_post(\n`
+    sql += `    url := '${fnUrl}',\n`
+    sql += `    headers := '{"Content-Type":"application/json"}'::jsonb,\n`
+    sql += `    body := '{}'::jsonb\n`
+    sql += `  );$$\n);\n`
   }
 
   document.getElementById('cronSqlPreview').textContent = sql
