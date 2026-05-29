@@ -253,16 +253,33 @@ ${JSON.stringify(shop?.faq ?? [])}
       const { available, remaining, alternatives } = await checkAvailability(req.date, req.time, req.party_size)
 
       if (available) {
-        // ✅ 空きあり → Claudeを再呼び出しして予約確定メッセージを生成
-        const confirmMessages = [
-          ...messages,
-          { role: 'assistant' as const, content: reply },
-          {
-            role: 'user' as const,
-            content: `[システム通知] 空席確認完了: ${req.date} ${req.time} は空きがあります（残り${remaining}名分）。予約を確定し、お客様に確定メッセージを送ってください。<RESERVATION>タグで予約を保存してください。`,
-          },
-        ]
-        reply = await callClaude(systemPrompt, confirmMessages)
+        // ✅ 空きあり → Function側で予約確定メッセージを直接生成（タイムアウト対策）
+        const dateObj = new Date(req.date + 'T00:00:00+09:00')
+        const dateJP  = dateObj.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })
+        const timeStr = req.time.slice(0, 5)
+
+        // Claudeの返答からお客様の名前を抽出（会話履歴の最後のuser発言を参照）
+        const lastName = messages.filter(m => m.role === 'user').pop()?.content ?? ''
+        const nameMatch = lastName.match(/^(.{1,10})(です|と申します|でございます)?$/)
+        const guestName = nameMatch ? nameMatch[1] : lastName.slice(0, 6)
+
+        // 予約をDBに保存
+        await saveReservation({
+          lineUserId,
+          name:      guestName,
+          date:      req.date,
+          time:      req.time,
+          partySize: req.party_size,
+        })
+
+        return `${guestName}様、ご予約を承りました。
+
+【ご予約確定】
+・日時：${dateJP} ${timeStr}
+・人数：${req.party_size}名様
+
+ご来店をお待ちしております！
+キャンセル・変更はこちらのLINEにてご連絡ください。`
       } else {
         // 満席 → 代替時間を含むメッセージを直接返す
         const dateObj = new Date(req.date + 'T00:00:00+09:00')
@@ -335,3 +352,4 @@ Deno.serve(async (req) => {
 
   return new Response('OK', { status: 200 })
 })
+
