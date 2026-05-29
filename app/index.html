@@ -474,6 +474,11 @@ tr:hover td { background: rgba(255,255,255,.02); }
 }
 .quick-btn:hover { background: rgba(212,136,58,.2); }
 
+/* ── NOTIFY PANEL ── */
+.toggle-switch {
+  display: flex; align-items: center; gap: .5rem; cursor: pointer;
+}
+
 /* ── STAFF PANEL ── */
 .staff-grid {
   display: grid; grid-template-columns: 1fr 320px; gap: 1.5rem;
@@ -711,6 +716,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
     </div>
     <div class="nav-item" data-panel="staff">
       <span class="nav-icon">👤</span><span class="nav-text">スタッフ管理</span>
+    </div>
+    <div class="nav-item" data-panel="notify">
+      <span class="nav-icon">🔔</span><span class="nav-text">通知設定</span>
     </div>
     <div class="nav-item" data-panel="ai">
       <span class="nav-icon">✦</span><span class="nav-text">AIアシスタント</span>
@@ -1113,6 +1121,103 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
     </div>
 
+    <!-- NOTIFY -->
+    <div class="panel" id="panel-notify">
+
+      <div class="settings-card">
+        <div class="settings-card-title">🔔 予約リマインダー設定</div>
+        <p style="font-size:.8rem;color:var(--mist);margin-bottom:1.5rem;line-height:1.8">
+          確定済みの予約に対してLINEでリマインダーを自動送信します。<br>
+          変更を保存すると次回のCron実行から反映されます。
+        </p>
+
+        <!-- 前日リマインダー -->
+        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:1.2rem;margin-bottom:1rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+            <div>
+              <div style="font-size:.85rem;font-weight:500">前日リマインダー</div>
+              <div style="font-size:.72rem;color:var(--mist);margin-top:.2rem">予約前日にお客様へ送信</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+              <input type="checkbox" id="n-day-before-enabled" style="accent-color:var(--amber);width:16px;height:16px">
+              <span style="font-size:.78rem;color:var(--mist)" id="n-day-before-label">OFF</span>
+            </label>
+          </div>
+          <div class="form-row" id="n-day-before-time-row">
+            <div class="form-label">送信時間</div>
+            <select class="form-input" id="n-day-before-time" style="max-width:160px">
+              <option value="17">17:00</option>
+              <option value="18" selected>18:00</option>
+              <option value="19">19:00</option>
+              <option value="20">20:00</option>
+              <option value="21">21:00</option>
+            </select>
+          </div>
+          <div style="background:rgba(255,255,255,.03);border-radius:6px;padding:.8rem;margin-top:.8rem">
+            <div style="font-size:.68rem;color:var(--mist);margin-bottom:.4rem">送信メッセージ（プレビュー）</div>
+            <div style="font-size:.75rem;line-height:1.8;color:var(--cream)" id="preview-day-before">
+              【ご予約リマインダー】<br>
+              明日のご予約のご確認です。<br><br>
+              ▶ 6月1日（日） 13:00<br>
+              ▶ 4名様<br>
+              ▶ 田中様<br><br>
+              ご来店をお待ちしております。<br>
+              キャンセル・変更はこちらのLINEにてご連絡ください。
+            </div>
+          </div>
+        </div>
+
+        <!-- 当日リマインダー -->
+        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:1.2rem;margin-bottom:1.5rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+            <div>
+              <div style="font-size:.85rem;font-weight:500">当日リマインダー</div>
+              <div style="font-size:.72rem;color:var(--mist);margin-top:.2rem">予約当日の朝にお客様へ送信</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+              <input type="checkbox" id="n-day-of-enabled" style="accent-color:var(--amber);width:16px;height:16px">
+              <span style="font-size:.78rem;color:var(--mist)" id="n-day-of-label">OFF</span>
+            </label>
+          </div>
+          <div class="form-row" id="n-day-of-time-row">
+            <div class="form-label">送信時間</div>
+            <select class="form-input" id="n-day-of-time" style="max-width:160px">
+              <option value="7">07:00</option>
+              <option value="8">08:00</option>
+              <option value="9" selected>09:00</option>
+              <option value="10">10:00</option>
+              <option value="11">11:00</option>
+            </select>
+          </div>
+          <div style="background:rgba(255,255,255,.03);border-radius:6px;padding:.8rem;margin-top:.8rem">
+            <div style="font-size:.68rem;color:var(--mist);margin-bottom:.4rem">送信メッセージ（プレビュー）</div>
+            <div style="font-size:.75rem;line-height:1.8;color:var(--cream)">
+              【本日のご予約】<br>
+              本日のご予約をお知らせします。<br><br>
+              ▶ 13:00<br>
+              ▶ 4名様<br>
+              ▶ 田中様<br><br>
+              ご来店をお待ちしております！<br>
+              キャンセル・変更はこちらのLINEにてご連絡ください。
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-sm btn-amber" style="width:100%;padding:.65rem" onclick="saveNotifySettings()">保存する</button>
+      </div>
+
+      <!-- Cron設定ガイド -->
+      <div class="settings-card">
+        <div class="settings-card-title">⚙️ Cron スケジュール</div>
+        <p style="font-size:.8rem;color:var(--mist);margin-bottom:1rem;line-height:1.8">
+          設定を変更した場合、Supabase SQL EditorでCronスケジュールの更新が必要です。
+        </p>
+        <div id="cronSqlPreview" style="background:#0E0C0A;border:1px solid var(--border);border-radius:6px;padding:1rem;font-size:.72rem;font-family:monospace;line-height:1.9;color:#A0D080;white-space:pre-wrap"></div>
+        <button class="btn-sm btn-outline" style="margin-top:.8rem;font-size:.75rem" onclick="copyCronSql()">SQLをコピー</button>
+      </div>
+
+    </div>
+
     <!-- AI ASSISTANT -->
     <div class="panel" id="panel-ai">
       <div class="ai-chat">
@@ -1280,7 +1385,7 @@ function closeSidebar() {
 const titles = {
   dashboard: 'ダッシュボード', reservation: 'LINE予約エージェント',
   shift: 'シフト管理', meo: 'MEOエージェント',
-  seats: '空席設定', staff: 'スタッフ管理', ai: 'AIアシスタント'
+  seats: '空席設定', staff: 'スタッフ管理', notify: '通知設定', ai: 'AIアシスタント'
 }
 document.querySelectorAll('.nav-item').forEach(item => {
   item.addEventListener('click', () => {
@@ -1294,6 +1399,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     if (key === 'seats') loadSeatsPanel()
     if (key === 'staff') loadStaffPanel()
     if (key === 'shift') loadShiftPanel()
+    if (key === 'notify') loadNotifyPanel()
     if (window.innerWidth <= 768) closeSidebar()
   })
 })
@@ -2111,6 +2217,142 @@ async function confirmWeek() {
 }
 
 // ──────────────────────────────
+// ★ NOTIFY SETTINGS ★
+// ──────────────────────────────
+async function loadNotifyPanel() {
+  // DBから設定を取得
+  const { data: shop } = await foodaiDb.from('foodai_shops')
+    .select('reminder_settings').eq('id', FOODAI_SHOP_ID).single()
+
+  const s = shop?.reminder_settings ?? {}
+  const dayBefore = s.day_before ?? { enabled: true,  hour: 18 }
+  const dayOf     = s.day_of     ?? { enabled: true,  hour: 9  }
+
+  document.getElementById('n-day-before-enabled').checked = dayBefore.enabled
+  document.getElementById('n-day-before-time').value      = String(dayBefore.hour)
+  document.getElementById('n-day-of-enabled').checked     = dayOf.enabled
+  document.getElementById('n-day-of-time').value          = String(dayOf.hour)
+
+  updateNotifyLabels()
+  updateCronPreview()
+
+  // チェックボックス変更時
+  document.getElementById('n-day-before-enabled').onchange = () => { updateNotifyLabels(); updateCronPreview() }
+  document.getElementById('n-day-of-enabled').onchange     = () => { updateNotifyLabels(); updateCronPreview() }
+  document.getElementById('n-day-before-time').onchange    = updateCronPreview
+  document.getElementById('n-day-of-time').onchange        = updateCronPreview
+}
+
+function updateNotifyLabels() {
+  const dbEnabled = document.getElementById('n-day-before-enabled').checked
+  const doEnabled = document.getElementById('n-day-of-enabled').checked
+  document.getElementById('n-day-before-label').textContent = dbEnabled ? 'ON' : 'OFF'
+  document.getElementById('n-day-before-label').style.color = dbEnabled ? 'var(--amber)' : 'var(--mist)'
+  document.getElementById('n-day-of-label').textContent     = doEnabled ? 'ON' : 'OFF'
+  document.getElementById('n-day-of-label').style.color     = doEnabled ? 'var(--amber)' : 'var(--mist)'
+}
+
+function updateCronPreview() {
+  const dbEnabled = document.getElementById('n-day-before-enabled').checked
+  const doEnabled = document.getElementById('n-day-of-enabled').checked
+  const dbHour    = parseInt(document.getElementById('n-day-before-time').value)
+  const doHour    = parseInt(document.getElementById('n-day-of-time').value)
+
+  // JST → UTC（-9時間）
+  const dbUTC = ((dbHour - 9) + 24) % 24
+  const doUTC = ((doHour - 9) + 24) % 24
+
+  const fnUrl = 'https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/foodai-reminder'
+
+  let sql = '-- 既存のCronを削除してから再登録
+'
+  sql += "select cron.unschedule('foodai-reminder-evening');
+"
+  sql += "select cron.unschedule('foodai-reminder-morning');
+
+"
+
+  if (dbEnabled) {
+    sql += `-- 前日リマインダー（JST ${dbHour}:00 = UTC ${dbUTC}:00）
+`
+    sql += `select cron.schedule(
+`
+    sql += `  'foodai-reminder-evening',
+`
+    sql += `  '0 ${dbUTC} * * *',
+`
+    sql += `  $$select net.http_post(
+`
+    sql += `    url := '${fnUrl}',
+`
+    sql += `    headers := '{"Content-Type":"application/json"}'::jsonb,
+`
+    sql += `    body := '{}'::jsonb
+`
+    sql += `  );$$
+);
+
+`
+  }
+
+  if (doEnabled) {
+    sql += `-- 当日リマインダー（JST ${doHour}:00 = UTC ${doUTC}:00）
+`
+    sql += `select cron.schedule(
+`
+    sql += `  'foodai-reminder-morning',
+`
+    sql += `  '0 ${doUTC} * * *',
+`
+    sql += `  $$select net.http_post(
+`
+    sql += `    url := '${fnUrl}',
+`
+    sql += `    headers := '{"Content-Type":"application/json"}'::jsonb,
+`
+    sql += `    body := '{}'::jsonb
+`
+    sql += `  );$$
+);
+`
+  }
+
+  document.getElementById('cronSqlPreview').textContent = sql
+}
+
+async function saveNotifySettings() {
+  const dbEnabled = document.getElementById('n-day-before-enabled').checked
+  const doEnabled = document.getElementById('n-day-of-enabled').checked
+  const dbHour    = parseInt(document.getElementById('n-day-before-time').value)
+  const doHour    = parseInt(document.getElementById('n-day-of-time').value)
+
+  const reminder_settings = {
+    day_before: { enabled: dbEnabled, hour: dbHour },
+    day_of:     { enabled: doEnabled, hour: doHour  },
+  }
+
+  const { error } = await foodaiDb.from('foodai_shops')
+    .update({ reminder_settings })
+    .eq('id', FOODAI_SHOP_ID)
+
+  if (error) {
+    showToast('保存に失敗しました', 'var(--red)')
+  } else {
+    showToast('✓ 通知設定を保存しました')
+    updateCronPreview()
+  }
+}
+
+function copyCronSql() {
+  const sql = document.getElementById('cronSqlPreview').textContent
+  navigator.clipboard.writeText(sql).then(() => {
+    showToast('✓ SQLをコピーしました')
+  }).catch(() => {
+    showToast('コピーに失敗しました。手動でコピーしてください。', 'var(--red)')
+  })
+}
+
+// ──────────────────────────────
 // QRポップオーバー
 function openQR() { document.getElementById('qrPopover').classList.add('show') }
 function closeQR(e) {
@@ -2124,4 +2366,5 @@ loadDashboard()
 </script>
 </body>
 </html>
+
 
