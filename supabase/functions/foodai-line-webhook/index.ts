@@ -244,8 +244,6 @@ async function chat(lineUserId: string, userMessage: string): Promise<string> {
 
   // ── 空席チェック
   const checkMatch = reply.match(/<CHECK_AVAILABILITY>(.+?)<\/CHECK_AVAILABILITY>/s)
-  console.log('Claude reply:', reply.slice(0, 200))
-  console.log('CHECK_AVAILABILITY match:', checkMatch?.[1])
   if (checkMatch) {
     try {
       const req = JSON.parse(checkMatch[1])
@@ -253,8 +251,8 @@ async function chat(lineUserId: string, userMessage: string): Promise<string> {
 
       if (available) {
         // ✅ 空きあり → Function側で予約確定メッセージを直接生成（タイムアウト対策）
-        const dateObj = new Date(req.date + 'T00:00:00+09:00')
-        const dateJP  = dateObj.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })
+        const dateObj = new Date(req.date + 'T12:00:00+09:00')
+        const dateJP  = dateObj.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short', timeZone: 'Asia/Tokyo' })
         const timeStr = req.time.slice(0, 5)
 
         // Claudeの返答からお客様の名前を抽出（会話履歴の最後のuser発言を参照）
@@ -281,8 +279,8 @@ async function chat(lineUserId: string, userMessage: string): Promise<string> {
 キャンセル・変更はこちらのLINEにてご連絡ください。`
       } else {
         // 満席 → 代替時間を含むメッセージを直接返す
-        const dateObj = new Date(req.date + 'T00:00:00+09:00')
-        const dateJP = dateObj.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })
+        const dateObj = new Date(req.date + 'T12:00:00+09:00')
+        const dateJP = dateObj.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short', timeZone: 'Asia/Tokyo' })
         const altText = alternatives.length > 0
           ? `\nご希望のお時間に近い空き枠として、${alternatives.map(t => t.slice(0,5)).join('、')} でしたらご案内できます。ご都合はいかがでしょうか？`
           : '\n大変申し訳ございませんが、その日はご希望の時間帯が満席となっております。他の日程でしたらご確認いたします。'
