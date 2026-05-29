@@ -104,32 +104,38 @@ async function checkAvailability(date: string, time: string, partySize: number):
   const remaining = capacity - usedCapacity
   const available = remaining >= partySize
 
-  // 空き代替時間を探す（前後3枠）
+  // 空き代替時間を探す（前後6枠を時系列順で最大3件）
   const alternatives: string[] = []
   if (!available) {
-    for (let delta = 1; delta <= 3; delta++) {
+    const candidates: string[] = []
+    for (let delta = 1; delta <= 6; delta++) {
       for (const sign of [-1, 1]) {
         const altMin = h * 60 + m + sign * delta * slotMins
         if (altMin < 0 || altMin >= 23 * 60) continue
-        const altTime = `${String(Math.floor(altMin / 60)).padStart(2,'0')}:${String(altMin % 60).padStart(2,'0')}`
-        const altEnd  = `${String(Math.floor((altMin + slotMins) / 60)).padStart(2,'0')}:${String((altMin + slotMins) % 60).padStart(2,'0')}`
-
-        const { data: altExisting } = await supabase
-          .from('foodai_reservations')
-          .select('party_size')
-          .eq('shop_id', SHOP_ID)
-          .eq('date', date)
-          .in('status', ['confirmed', 'pending'])
-          .gte('time', altTime)
-          .lt('time', altEnd)
-
-        const altUsed = (altExisting ?? []).reduce((s, r) => s + r.party_size, 0)
-        if (capacity - altUsed >= partySize) {
-          alternatives.push(altTime)
-          if (alternatives.length >= 3) break
-        }
+        candidates.push(`${String(Math.floor(altMin / 60)).padStart(2,'0')}:${String(altMin % 60).padStart(2,'0')}`)
       }
-      if (alternatives.length >= 3) break
+    }
+    candidates.sort()
+
+    for (const altTime of candidates) {
+      const [ah, am] = altTime.split(':').map(Number)
+      const altEndMin = ah * 60 + am + slotMins
+      const altEnd = `${String(Math.floor(altEndMin / 60)).padStart(2,'0')}:${String(altEndMin % 60).padStart(2,'0')}`
+
+      const { data: altExisting } = await supabase
+        .from('foodai_reservations')
+        .select('party_size')
+        .eq('shop_id', SHOP_ID)
+        .eq('date', date)
+        .in('status', ['confirmed', 'pending'])
+        .gte('time', altTime)
+        .lt('time', altEnd)
+
+      const altUsed = (altExisting ?? []).reduce((s, r) => s + r.party_size, 0)
+      if (capacity - altUsed >= partySize) {
+        alternatives.push(altTime)
+        if (alternatives.length >= 3) break
+      }
     }
   }
 
@@ -249,10 +255,12 @@ ${JSON.stringify(shop?.faq ?? [])}
         reply = await callClaude(systemPrompt, confirmMessages)
       } else {
         // 満席 → 代替時間を含むメッセージを直接返す
+        const dateObj = new Date(req.date + 'T00:00:00+09:00')
+        const dateJP = dateObj.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })
         const altText = alternatives.length > 0
-          ? `\n代わりに ${alternatives.join('、')} でしたらご案内できます。いかがでしょうか？`
-          : '\n大変申し訳ございませんが、その日はご希望の時間帯が満席となっております。'
-        return `申し訳ございません。${req.date} ${req.time}は満席です。${altText}`
+          ? `\nご希望のお時間に近い空き枠として、${alternatives.map(t => t.slice(0,5)).join('、')} でしたらご案内できます。ご都合はいかがでしょうか？`
+          : '\n大変申し訳ございませんが、その日はご希望の時間帯が満席となっております。他の日程でしたらご確認いたします。'
+        return `大変申し訳ございません。${dateJP} ${req.time.slice(0,5)}は満席となっております。${altText}`
       }
     } catch (e) {
       console.error('空席チェックエラー:', e)
