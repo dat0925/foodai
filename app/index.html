@@ -897,7 +897,14 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
       <div>
         <div class="section-header">
-          <div class="section-title">本日の予約一覧</div>
+          <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap">
+            <div class="section-title" id="reserveDateTitle">本日の予約一覧</div>
+            <div style="display:flex;align-items:center;gap:.4rem">
+              <button class="btn-sm btn-outline" onclick="changeReserveDate(-1)" style="padding:.3rem .7rem">‹ 前日</button>
+              <button class="btn-sm btn-outline" onclick="changeReserveDate(0)" style="padding:.3rem .7rem;font-size:.72rem">今日</button>
+              <button class="btn-sm btn-outline" onclick="changeReserveDate(1)" style="padding:.3rem .7rem">翌日 ›</button>
+            </div>
+          </div>
           <button class="btn-sm btn-outline" onclick="loadDashboard()">更新</button>
         </div>
         <div class="table-wrap">
@@ -1445,19 +1452,48 @@ async function loadDashboard() {
   // オンボーディング更新
   loadOnboarding()
 
+  // 予約テーブルはloadReservationTableに委譲
+  reserveViewDate = today
+  loadReservationTable()
+}
+
+// ── 予約一覧の表示日付
+let reserveViewDate = todayJST()
+
+function changeReserveDate(delta) {
+  if (delta === 0) {
+    reserveViewDate = todayJST()
+  } else {
+    const d = new Date(reserveViewDate + 'T12:00:00+09:00')
+    d.setDate(d.getDate() + delta)
+    reserveViewDate = d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })
+  }
+  loadReservationTable()
+}
+
+async function loadReservationTable() {
+  const today = todayJST()
+  const d = new Date(reserveViewDate + 'T12:00:00+09:00')
+  const label = reserveViewDate === today
+    ? '本日の予約一覧'
+    : d.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short', timeZone: 'Asia/Tokyo' }) + ' の予約一覧'
+  const titleEl = document.getElementById('reserveDateTitle')
+  if (titleEl) titleEl.textContent = label
+
+  const { data: resData } = await foodaiDb
+    .from('foodai_reservations')
+    .select('id, name, time, party_size, status, note')
+    .eq('shop_id', FOODAI_SHOP_ID)
+    .eq('date', reserveViewDate)
+    .order('time', { ascending: true })
+
   const tbody = document.getElementById('reservationTable')
-  if (!todayData || todayData.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--mist);padding:2rem">本日の予約はありません</td></tr>`
+  if (!tbody) return
+  if (!resData || resData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--mist);padding:2rem">この日の予約はありません</td></tr>'
     return
   }
-  tbody.innerHTML = todayData.map(r => `
-    <tr>
-      <td>${r.time?.slice(0,5) ?? '—'}</td>
-      <td>${r.name}</td>
-      <td>${r.party_size}名</td>
-      <td><span class="status-badge ${statusClass[r.status] ?? ''}">${statusLabel[r.status] ?? r.status}</span></td>
-      <td>${r.note ?? '—'}</td>
-    </tr>`).join('')
+  tbody.innerHTML = resData.map(r => '<tr><td>' + (r.time?.slice(0,5) ?? '—') + '</td><td>' + r.name + '</td><td>' + r.party_size + '名</td><td><span class="status-badge ' + (statusClass[r.status] ?? '') + '">' + (statusLabel[r.status] ?? r.status) + '</span></td><td>' + (r.note ?? '—') + '</td></tr>').join('')
 }
 
 // ──────────────────────────────
