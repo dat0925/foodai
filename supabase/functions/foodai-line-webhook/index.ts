@@ -65,10 +65,76 @@ async function saveMessage(lineUserId: string, role: string, content: string) {
 async function getShopInfo() {
   const { data } = await supabase
     .from('foodai_shops')
-    .select('name, opening_hours, faq')
+    .select('name, opening_hours, faq, capacity_per_slot, slot_minutes')
     .eq('id', SHOP_ID)
     .single()
   return data
+}
+
+// ── 空席チェック
+async function checkAvailability(date: string, time: string, partySize: number): Promise<{
+  available: boolean
+  remaining: number
+  alternatives: string[]
+}> {
+  const { data: shop } = await supabase
+    .from('foodai_shops')
+    .select('capacity_per_slot, slot_minutes')
+    .eq('id', SHOP_ID)
+    .single()
+
+  const capacity   = shop?.capacity_per_slot ?? 20
+  const slotMins   = shop?.slot_minutes ?? 30
+
+  // 同じ枠の既存予約人数合計
+  const slotStart = time.slice(0, 5)
+  const [h, m] = slotStart.split(':').map(Number)
+  const slotEndMin = h * 60 + m + slotMins
+  const slotEnd = `${String(Math.floor(slotEndMin / 60)).padStart(2,'0')}:${String(slotEndMin % 60).padStart(2,'0')}`
+
+  const { data: existing } = await supabase
+    .from('foodai_reservations')
+    .select('party_size, time')
+    .eq('shop_id', SHOP_ID)
+    .eq('date', date)
+    .in('status', ['confirmed', 'pending'])
+    .gte('time', slotStart)
+    .lt('time', slotEnd)
+
+  const usedCapacity = (existing ?? []).reduce((s, r) => s + r.party_size, 0)
+  const remaining = capacity - usedCapacity
+  const available = remaining >= partySize
+
+  // 空き代替時間を探す（前後3枠）
+  const alternatives: string[] = []
+  if (!available) {
+    for (let delta = 1; delta <= 3; delta++) {
+      for (const sign of [-1, 1]) {
+        const altMin = h * 60 + m + sign * delta * slotMins
+        if (altMin < 0 || altMin >= 23 * 60) continue
+        const altTime = `${String(Math.floor(altMin / 60)).padStart(2,'0')}:${String(altMin % 60).padStart(2,'0')}`
+        const altEnd  = `${String(Math.floor((altMin + slotMins) / 60)).padStart(2,'0')}:${String((altMin + slotMins) % 60).padStart(2,'0')}`
+
+        const { data: altExisting } = await supabase
+          .from('foodai_reservations')
+          .select('party_size')
+          .eq('shop_id', SHOP_ID)
+          .eq('date', date)
+          .in('status', ['confirmed', 'pending'])
+          .gte('time', altTime)
+          .lt('time', altEnd)
+
+        const altUsed = (altExisting ?? []).reduce((s, r) => s + r.party_size, 0)
+        if (capacity - altUsed >= partySize) {
+          alternatives.push(altTime)
+          if (alternatives.length >= 3) break
+        }
+      }
+      if (alternatives.length >= 3) break
+    }
+  }
+
+  return { available, remaining, alternatives }
 }
 
 // ── 予約を保存
@@ -81,14 +147,14 @@ async function saveReservation(params: {
   note?: string
 }) {
   const { data, error } = await supabase.from('foodai_reservations').insert({
-    shop_id: SHOP_ID,
+    shop_id:      SHOP_ID,
     line_user_id: params.lineUserId,
-    name: params.name,
-    date: params.date,
-    time: params.time,
-    party_size: params.partySize,
-    note: params.note ?? null,
-    status: 'confirmed',
+    name:         params.name,
+    date:         params.date,
+    time:         params.time,
+    party_size:   params.partySize,
+    note:         params.note ?? null,
+    status:       'confirmed',
   }).select().single()
   return { data, error }
 }
@@ -117,11 +183,17 @@ ${JSON.stringify(shop?.opening_hours ?? {})}
 【よくある質問と回答】
 ${JSON.stringify(shop?.faq ?? [])}
 
+【空席管理】
+- 1枠（${shop?.slot_minutes ?? 30}分）あたりの最大受入人数: ${shop?.capacity_per_slot ?? 20}名
+- 予約確定前に必ず空席チェックが必要です
+- 満席の場合は代替時間を提案してください
+
 【予約受付ルール】
 - 予約に必要な情報: 日時・人数・お名前
 - 情報が不足している場合は、1つずつ丁寧に確認する
-- 情報が揃ったら「確認」として内容をまとめて伝え、確定する
-- 予約確定時は必ず以下のJSON形式を返答の最後に含める（お客様には見えません）:
+- 情報が揃ったら以下のタグで空席チェックを要求する（お客様には見えません）:
+  <CHECK_AVAILABILITY>{"date":"YYYY-MM-DD","time":"HH:MM","party_size":人数}</CHECK_AVAILABILITY>
+- 空席確認後に予約確定する場合は以下のタグを含める（お客様には見えません）:
   <RESERVATION>{"name":"名前","date":"YYYY-MM-DD","time":"HH:MM","party_size":人数}</RESERVATION>
 
 【返答のルール】
@@ -151,45 +223,66 @@ ${JSON.stringify(shop?.faq ?? [])}
   })
 
   const data = await res.json()
-  const reply = data.content?.[0]?.text ?? 'しばらくお待ちいただき、もう一度お試しください。'
+  let reply = data.content?.[0]?.text ?? 'しばらくお待ちいただき、もう一度お試しください。'
 
-  // 予約情報をパースして保存
-  const match = reply.match(/<RESERVATION>(.+?)<\/RESERVATION>/s)
-  if (match) {
+  // ── 空席チェック
+  const checkMatch = reply.match(/<CHECK_AVAILABILITY>(.+?)<\/CHECK_AVAILABILITY>/s)
+  if (checkMatch) {
     try {
-      const reservation = JSON.parse(match[1])
+      const req = JSON.parse(checkMatch[1])
+      const { available, remaining, alternatives } = await checkAvailability(req.date, req.time, req.party_size)
+
+      if (available) {
+        // 空きあり → そのまま予約確定のメッセージに置き換え
+        reply = reply.replace(/<CHECK_AVAILABILITY>.*?<\/CHECK_AVAILABILITY>/s,
+          `[空席確認済み: ${req.date} ${req.time} 残り${remaining}名分]`)
+      } else {
+        // 満席 → 代替時間を含むメッセージに差し替え
+        const altText = alternatives.length > 0
+          ? `\n代わりに ${alternatives.join('、')} でしたらご案内できます。いかがでしょうか？`
+          : '\n大変申し訳ございませんが、その日はご希望の時間帯が満席となっております。'
+        reply = `申し訳ございません。${req.date} ${req.time}は満席です。${altText}`
+        return reply
+      }
+    } catch (e) {
+      console.error('空席チェックエラー:', e)
+    }
+  }
+
+  // ── 予約保存
+  const reservationMatch = reply.match(/<RESERVATION>(.+?)<\/RESERVATION>/s)
+  if (reservationMatch) {
+    try {
+      const reservation = JSON.parse(reservationMatch[1])
       await saveReservation({
         lineUserId,
-        name: reservation.name,
-        date: reservation.date,
-        time: reservation.time,
-        partySize: reservation.party_size,
+        name:       reservation.name,
+        date:       reservation.date,
+        time:       reservation.time,
+        partySize:  reservation.party_size,
       })
     } catch (e) {
       console.error('予約パースエラー:', e)
     }
   }
 
-  // タグを除いたテキストをお客様に返す
-  const cleanReply = reply.replace(/<RESERVATION>.*?<\/RESERVATION>/s, '').trim()
+  // タグを除いたテキストを返す
+  const cleanReply = reply
+    .replace(/<CHECK_AVAILABILITY>.*?<\/CHECK_AVAILABILITY>/s, '')
+    .replace(/<RESERVATION>.*?<\/RESERVATION>/s, '')
+    .replace(/\[空席確認済み[^\]]*\]/g, '')
+    .trim()
   return cleanReply
 }
 
 // ── メインハンドラ
 Deno.serve(async (req) => {
-  // LINEの疎通確認（空のbody）
-  if (req.method === 'GET') {
-    return new Response('OK', { status: 200 })
-  }
+  if (req.method === 'GET') return new Response('OK', { status: 200 })
+  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
 
-  if (req.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405 })
-  }
-
-  const body = await req.text()
+  const body      = await req.text()
   const signature = req.headers.get('x-line-signature') ?? ''
 
-  // 署名検証
   const valid = await verifySignature(body, signature)
   if (!valid) {
     console.error('署名検証失敗')
@@ -198,26 +291,17 @@ Deno.serve(async (req) => {
 
   const payload = JSON.parse(body)
 
-  // イベントを並列処理
   await Promise.all(
     (payload.events ?? []).map(async (event: any) => {
-      // テキストメッセージのみ処理
       if (event.type !== 'message' || event.message?.type !== 'text') return
 
       const lineUserId  = event.source.userId
       const userMessage = event.message.text
       const replyToken  = event.replyToken
 
-      // 会話履歴に保存
       await saveMessage(lineUserId, 'user', userMessage)
-
-      // Claude で返答生成
       const reply = await chat(lineUserId, userMessage)
-
-      // 会話履歴に保存
       await saveMessage(lineUserId, 'assistant', reply)
-
-      // LINEへ返信
       await replyToLine(replyToken, reply)
     })
   )
