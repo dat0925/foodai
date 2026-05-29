@@ -86,7 +86,6 @@ async function checkAvailability(date: string, time: string, partySize: number):
   const capacity   = shop?.capacity_per_slot ?? 20
   const slotMins   = shop?.slot_minutes ?? 30
 
-  // 同じ枠の既存予約人数合計
   const slotStart = time.slice(0, 5)
   const [h, m] = slotStart.split(':').map(Number)
   const slotEndMin = h * 60 + m + slotMins
@@ -159,6 +158,26 @@ async function saveReservation(params: {
   return { data, error }
 }
 
+// ── Claude APIを呼ぶ共通関数
+async function callClaude(systemPrompt: string, messages: {role: 'user'|'assistant', content: string}[]): Promise<string> {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages,
+    }),
+  })
+  const data = await res.json()
+  return data.content?.[0]?.text ?? 'しばらくお待ちいただき、もう一度お試しください。'
+}
+
 // ── Claude APIで応答生成
 async function chat(lineUserId: string, userMessage: string): Promise<string> {
   const [history, shop] = await Promise.all([
@@ -207,23 +226,8 @@ ${JSON.stringify(shop?.faq ?? [])}
     { role: 'user' as const, content: userMessage },
   ]
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages,
-    }),
-  })
-
-  const data = await res.json()
-  let reply = data.content?.[0]?.text ?? 'しばらくお待ちいただき、もう一度お試しください。'
+  // ── 1回目のClaude呼び出し
+  let reply = await callClaude(systemPrompt, messages)
 
   // ── 空席チェック
   const checkMatch = reply.match(/<CHECK_AVAILABILITY>(.+?)<\/CHECK_AVAILABILITY>/s)
@@ -233,16 +237,22 @@ ${JSON.stringify(shop?.faq ?? [])}
       const { available, remaining, alternatives } = await checkAvailability(req.date, req.time, req.party_size)
 
       if (available) {
-        // 空きあり → そのまま予約確定のメッセージに置き換え
-        reply = reply.replace(/<CHECK_AVAILABILITY>.*?<\/CHECK_AVAILABILITY>/s,
-          `[空席確認済み: ${req.date} ${req.time} 残り${remaining}名分]`)
+        // ✅ 空きあり → Claudeを再呼び出しして予約確定メッセージを生成
+        const confirmMessages = [
+          ...messages,
+          { role: 'assistant' as const, content: reply },
+          {
+            role: 'user' as const,
+            content: `[システム通知] 空席確認完了: ${req.date} ${req.time} は空きがあります（残り${remaining}名分）。予約を確定し、お客様に確定メッセージを送ってください。<RESERVATION>タグで予約を保存してください。`,
+          },
+        ]
+        reply = await callClaude(systemPrompt, confirmMessages)
       } else {
-        // 満席 → 代替時間を含むメッセージに差し替え
+        // 満席 → 代替時間を含むメッセージを直接返す
         const altText = alternatives.length > 0
           ? `\n代わりに ${alternatives.join('、')} でしたらご案内できます。いかがでしょうか？`
           : '\n大変申し訳ございませんが、その日はご希望の時間帯が満席となっております。'
-        reply = `申し訳ございません。${req.date} ${req.time}は満席です。${altText}`
-        return reply
+        return `申し訳ございません。${req.date} ${req.time}は満席です。${altText}`
       }
     } catch (e) {
       console.error('空席チェックエラー:', e)
@@ -270,7 +280,6 @@ ${JSON.stringify(shop?.faq ?? [])}
   const cleanReply = reply
     .replace(/<CHECK_AVAILABILITY>.*?<\/CHECK_AVAILABILITY>/s, '')
     .replace(/<RESERVATION>.*?<\/RESERVATION>/s, '')
-    .replace(/\[空席確認済み[^\]]*\]/g, '')
     .trim()
   return cleanReply
 }
