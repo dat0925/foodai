@@ -586,100 +586,52 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <div class="panel" id="panel-reservation">
       <div class="stats-row" style="grid-template-columns:repeat(3,1fr)">
         <div class="stat-card">
-          <div class="stat-label">今日のLINE受信</div>
-          <div class="stat-value">23<span style="font-size:1rem;color:var(--mist)">件</span></div>
-          <div class="stat-sub">AI自動返信: 21件</div>
+          <div class="stat-label">今月のLINE会話数</div>
+          <div class="stat-value" id="line-stat-convs">—<span style="font-size:1rem;color:var(--mist)">件</span></div>
+          <div class="stat-sub" id="line-stat-convs-sub">読み込み中...</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">平均応答時間</div>
-          <div class="stat-value">8<span style="font-size:1rem;color:var(--mist)">秒</span></div>
-          <div class="stat-sub">（従来: 2〜4時間）</div>
+          <div class="stat-label">ユニークユーザー</div>
+          <div class="stat-value" id="line-stat-users">—<span style="font-size:1rem;color:var(--mist)">人</span></div>
+          <div class="stat-sub">LINEから問い合わせ</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">本日確定予約</div>
-          <div class="stat-value">6<span style="font-size:1rem;color:var(--mist)">件</span></div>
-          <div class="stat-sub">キャンセル: 1件</div>
+          <div class="stat-label">今月の確定予約</div>
+          <div class="stat-value" id="line-stat-reservations">—<span style="font-size:1rem;color:var(--mist)">件</span></div>
+          <div class="stat-sub" id="line-stat-res-sub">—</div>
         </div>
       </div>
 
       <div class="chat-layout">
         <div class="chat-box">
-          <div class="chat-header-bar">
-            <div class="chat-av">山</div>
+          <div class="chat-header-bar" id="chatHeader">
+            <div class="chat-av" id="chatAv">—</div>
             <div>
-              <div class="chat-hname">山田 美咲</div>
-              <div class="chat-hmeta">今日 12:28 ● アレルギー確認待ち</div>
+              <div class="chat-hname" id="chatName">会話を選択してください</div>
+              <div class="chat-hmeta" id="chatMeta">—</div>
             </div>
-            <span class="badge badge-amber" style="margin-left:auto">要確認</span>
           </div>
           <div class="messages" id="lineMessages">
-            <div class="msg-row system">
-              <div class="msg-bubble">AIエージェントが会話を引き継いでいます</div>
-            </div>
-            <div class="msg-row user">
-              <div class="msg-av user-av">山</div>
-              <div class="msg-bubble">今日12時半に2人で予約したいのですが</div>
-            </div>
-            <div class="msg-row bot">
-              <div class="msg-av bot-av">AI</div>
-              <div class="msg-bubble">ありがとうございます！12時30分、2名様で承りました。<br>お名前を教えていただけますか？</div>
-            </div>
-            <div class="msg-row user">
-              <div class="msg-av user-av">山</div>
-              <div class="msg-bubble">山田です。えびアレルギーがあるのですが大丈夫ですか？</div>
-            </div>
-            <div class="msg-row bot">
-              <div class="msg-av bot-av">AI</div>
-              <div class="msg-bubble">山田様、えびアレルギーについてご確認いただきありがとうございます。<br>詳細を店舗に確認の上、折り返しご連絡いたします。少々お待ちください。</div>
-            </div>
-            <div class="msg-row system">
-              <div class="msg-bubble">⚠️ オーナーへの確認が必要です — 以下から返信してください</div>
+            <div style="text-align:center;color:var(--mist);padding:3rem;font-size:.85rem">
+              読み込み中...
             </div>
           </div>
           <div class="chat-input-row">
-            <textarea class="chat-input" id="lineInput" rows="1" placeholder="山田様へ返信…"></textarea>
-            <button class="send-btn" id="lineSendBtn" onclick="sendLineMsg()">送信</button>
+            <textarea class="chat-input" id="lineInput" rows="1" placeholder="返信を入力…"></textarea>
+            <button class="send-btn" id="lineSendBtn" onclick="sendOwnerReply()">送信</button>
           </div>
         </div>
 
         <div class="panel-right">
           <div class="mini-card">
-            <div class="mini-title">TODAY'S RESERVATIONS</div>
-            <div class="reserve-item">
-              <div>
-                <div class="reserve-name">田中 花子</div>
-                <div class="reserve-detail">2名 • 禁煙</div>
-              </div>
-              <div class="reserve-time">11:30</div>
-            </div>
-            <div class="reserve-item">
-              <div>
-                <div class="reserve-name">佐藤 一郎</div>
-                <div class="reserve-detail">4名</div>
-              </div>
-              <div class="reserve-time">12:00</div>
-            </div>
-            <div class="reserve-item" style="opacity:.6">
-              <div>
-                <div class="reserve-name">山田 美咲</div>
-                <div class="reserve-detail">2名 • えびアレルギー確認中</div>
-              </div>
-              <div class="reserve-time" style="color:var(--amber)">12:30</div>
-            </div>
-            <div class="reserve-item">
-              <div>
-                <div class="reserve-name">鈴木 健太</div>
-                <div class="reserve-detail">6名 • 誕生日</div>
-              </div>
-              <div class="reserve-time">18:00</div>
+            <div class="mini-title">RECENT CONVERSATIONS</div>
+            <div id="conversationList" style="display:flex;flex-direction:column;gap:.3rem;margin-top:.5rem">
+              <div style="font-size:.78rem;color:var(--mist)">読み込み中...</div>
             </div>
           </div>
-          <div class="mini-card">
-            <div class="mini-title">QUICK ACTIONS</div>
-            <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:.3rem">
-              <button class="btn-sm btn-amber" style="width:100%" onclick="quickReply('えびを使ったメニューの代替をご提案できます。')">✓ えびOK（代替あり）と返信</button>
-              <button class="btn-sm btn-outline" style="width:100%" onclick="quickReply('申し訳ございませんが、えびを使用した調理もしており、完全なアレルギー対応は難しい状況です。')">✗ 対応困難と返信</button>
-            </div>
+          <div class="mini-card" id="todayReserveMiniCard">
+            <div class="mini-title">TODAY'S RESERVATIONS</div>
+            <div id="todayReserveMini" style="font-size:.78rem;color:var(--mist)">読み込み中...</div>
           </div>
         </div>
       </div>
@@ -956,6 +908,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     const key = item.dataset.panel;
     document.getElementById('panel-' + key).classList.add('active');
     document.getElementById('panelTitle').textContent = titles[key];
+    if (key === 'reservation') loadReservationPanel();
     // モバイルでは選択後にサイドバーを閉じる
     if (window.innerWidth <= 768) closeSidebar();
   });
@@ -981,32 +934,182 @@ if (sb) {
   });
 }
 
-// ── LINE chat
-function sendLineMsg() {
-  const input = document.getElementById('lineInput');
-  const txt = input.value.trim();
-  if (!txt) return;
-  addMsg('lineMessages', txt, 'ai');
-  input.value = '';
-}
-function quickReply(txt) {
-  document.getElementById('lineInput').value = txt;
-  sendLineMsg();
-}
-function addMsg(containerId, text, type) {
-  const container = document.getElementById(containerId);
-  const row = document.createElement('div');
-  row.className = 'msg-row ' + (type === 'user' ? 'user' : type === 'system' ? 'system' : 'bot');
-  if (type === 'system') {
-    row.innerHTML = `<div class="msg-bubble">${text}</div>`;
+// ── LINE予約パネル
+let currentLineUserId = null
+
+async function loadReservationPanel() {
+  const monthStart = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' }).slice(0, 7) + '-01'
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })
+
+  // 会話統計
+  const { data: convs } = await foodaiDb
+    .from('foodai_conversations')
+    .select('line_user_id, created_at')
+    .eq('shop_id', FOODAI_SHOP_ID)
+    .gte('created_at', monthStart + 'T00:00:00Z')
+
+  const totalConvs = convs?.length ?? 0
+  const uniqueUsers = new Set(convs?.map(c => c.line_user_id)).size
+
+  document.getElementById('line-stat-convs').innerHTML =
+    `${totalConvs}<span style="font-size:1rem;color:var(--mist)">件</span>`
+  document.getElementById('line-stat-convs-sub').textContent = `今月のメッセージ総数`
+  document.getElementById('line-stat-users').innerHTML =
+    `${uniqueUsers}<span style="font-size:1rem;color:var(--mist)">人</span>`
+
+  // 今月の確定予約数
+  const { data: monthRes } = await foodaiDb
+    .from('foodai_reservations')
+    .select('id, party_size')
+    .eq('shop_id', FOODAI_SHOP_ID)
+    .eq('status', 'confirmed')
+    .gte('date', monthStart)
+
+  document.getElementById('line-stat-reservations').innerHTML =
+    `${monthRes?.length ?? 0}<span style="font-size:1rem;color:var(--mist)">件</span>`
+  document.getElementById('line-stat-res-sub').textContent =
+    `${monthRes?.reduce((s,r) => s + r.party_size, 0) ?? 0}名分`
+
+  // 最新会話ユーザーリスト（直近5人）
+  const { data: recentConvs } = await foodaiDb
+    .from('foodai_conversations')
+    .select('line_user_id, content, created_at, role')
+    .eq('shop_id', FOODAI_SHOP_ID)
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  // ユーザーごとに最新メッセージを取得
+  const userMap = new Map()
+  recentConvs?.forEach(c => {
+    if (!userMap.has(c.line_user_id)) userMap.set(c.line_user_id, c)
+  })
+  const recentUsers = Array.from(userMap.values()).slice(0, 5)
+
+  const convList = document.getElementById('conversationList')
+  if (recentUsers.length === 0) {
+    convList.innerHTML = `<div style="font-size:.78rem;color:var(--mist)">会話履歴がありません</div>`
   } else {
-    const av = type === 'user' ? '<div class="msg-av user-av">山</div>' : '<div class="msg-av ai-av" style="background:rgba(212,136,58,.2);color:var(--amber)">✦</div>';
-    row.innerHTML = (type === 'user' ? '' : av) +
-      `<div class="msg-bubble">${text}</div>` +
-      (type === 'user' ? av : '');
+    convList.innerHTML = recentUsers.map(c => {
+      const time = new Date(c.created_at).toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit', timeZone:'Asia/Tokyo' })
+      const preview = c.content.length > 20 ? c.content.slice(0,20) + '…' : c.content
+      const initial = c.line_user_id.slice(-2).toUpperCase()
+      return `
+        <div class="reserve-item" style="cursor:pointer;border-radius:6px;padding:.5rem .3rem;transition:background .15s"
+          onclick="loadConversation('${c.line_user_id}')"
+          onmouseover="this.style.background='rgba(255,255,255,.04)'"
+          onmouseout="this.style.background='transparent'">
+          <div style="display:flex;align-items:center;gap:.6rem">
+            <div class="chat-av" style="width:28px;height:28px;font-size:.6rem;flex-shrink:0">${initial}</div>
+            <div style="min-width:0">
+              <div class="reserve-name" style="font-size:.78rem">${c.line_user_id.slice(0,8)}...</div>
+              <div class="reserve-detail" style="font-size:.7rem">${preview}</div>
+            </div>
+          </div>
+          <div class="reserve-time">${time}</div>
+        </div>`
+    }).join('')
   }
-  container.appendChild(row);
-  container.scrollTop = container.scrollHeight;
+
+  // 本日の予約（右パネル）
+  const { data: todayRes } = await foodaiDb
+    .from('foodai_reservations')
+    .select('name, time, party_size, status, note')
+    .eq('shop_id', FOODAI_SHOP_ID)
+    .eq('date', today)
+    .order('time', { ascending: true })
+
+  const miniCard = document.getElementById('todayReserveMini')
+  if (!todayRes || todayRes.length === 0) {
+    miniCard.innerHTML = `<div style="color:var(--mist);font-size:.78rem;padding:.5rem 0">本日の予約はありません</div>`
+  } else {
+    miniCard.innerHTML = todayRes.map(r => `
+      <div class="reserve-item">
+        <div>
+          <div class="reserve-name">${r.name}</div>
+          <div class="reserve-detail">${r.party_size}名${r.note ? ' • ' + r.note : ''}</div>
+        </div>
+        <div class="reserve-time" style="color:var(--amber)">${r.time?.slice(0,5)}</div>
+      </div>`).join('')
+  }
+
+  // 最初の会話を自動表示
+  if (recentUsers.length > 0) loadConversation(recentUsers[0].line_user_id)
+}
+
+async function loadConversation(lineUserId) {
+  currentLineUserId = lineUserId
+  document.getElementById('lineInput').placeholder = '返信を入力…'
+
+  // ヘッダー更新
+  document.getElementById('chatAv').textContent = lineUserId.slice(-2).toUpperCase()
+  document.getElementById('chatName').textContent = lineUserId.slice(0, 12) + '...'
+  document.getElementById('chatMeta').textContent = 'LINE ユーザー'
+
+  // 会話履歴取得
+  const { data: messages } = await foodaiDb
+    .from('foodai_conversations')
+    .select('role, content, created_at')
+    .eq('shop_id', FOODAI_SHOP_ID)
+    .eq('line_user_id', lineUserId)
+    .order('created_at', { ascending: true })
+    .limit(30)
+
+  const container = document.getElementById('lineMessages')
+  if (!messages || messages.length === 0) {
+    container.innerHTML = `<div style="text-align:center;color:var(--mist);padding:2rem;font-size:.85rem">会話履歴がありません</div>`
+    return
+  }
+
+  container.innerHTML = messages.map(m => {
+    const time = new Date(m.created_at).toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit', timeZone:'Asia/Tokyo' })
+    if (m.role === 'user') {
+      return `<div class="msg-row user">
+        <div class="msg-av user-av">${lineUserId.slice(-2).toUpperCase()}</div>
+        <div class="msg-bubble">${m.content.replace(/\n/g,'<br>')}</div>
+      </div>`
+    } else {
+      return `<div class="msg-row bot">
+        <div class="msg-av bot-av">AI</div>
+        <div class="msg-bubble">${m.content.replace(/\n/g,'<br>')}</div>
+      </div>`
+    }
+  }).join('')
+  container.scrollTop = container.scrollHeight
+}
+
+async function sendOwnerReply() {
+  const input = document.getElementById('lineInput')
+  const text = input.value.trim()
+  if (!text || !currentLineUserId) return
+
+  const btn = document.getElementById('lineSendBtn')
+  btn.disabled = true
+  input.value = ''
+
+  // Edge Function経由で送信
+  const res = await fetch(`${FOODAI_SUPABASE_URL}/functions/v1/foodai-send-reply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${FOODAI_ANON_KEY}` },
+    body: JSON.stringify({ line_user_id: currentLineUserId, message: text }),
+  })
+
+  if (res.ok) {
+    // 送信成功 → 画面に追加
+    const container = document.getElementById('lineMessages')
+    container.innerHTML += `<div class="msg-row bot">
+      <div class="msg-av bot-av">オーナー</div>
+      <div class="msg-bubble">${text.replace(/\n/g,'<br>')}</div>
+    </div>`
+    container.scrollTop = container.scrollHeight
+  } else {
+    alert('送信に失敗しました')
+  }
+  btn.disabled = false
+}
+
+function quickReply(txt) {
+  document.getElementById('lineInput').value = txt
+  sendOwnerReply()
 }
 
 // ── Shift AI comment
