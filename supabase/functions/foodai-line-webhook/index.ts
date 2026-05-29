@@ -47,7 +47,7 @@ async function getHistory(lineUserId: string) {
     .eq('shop_id', SHOP_ID)
     .eq('line_user_id', lineUserId)
     .order('created_at', { ascending: false })
-    .limit(20)
+    .limit(10)
   return (data ?? []).reverse()
 }
 
@@ -207,55 +207,32 @@ async function chat(lineUserId: string, userMessage: string): Promise<string> {
   })
 
   const todayISO = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })
-  const tomorrowISO = new Date(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' }) + 'T00:00:00+09:00')
-  tomorrowISO.setDate(tomorrowISO.getDate() + 1)
-  const tomorrowStr = tomorrowISO.toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })
+  const tmrDate = new Date()
+  tmrDate.setDate(tmrDate.getDate() + 1)
+  const tomorrowISO = tmrDate.toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })
 
   const systemPrompt = `あなたは「${shop?.name ?? '当店'}」のLINE予約アシスタントです。
-今日は${today}（${todayISO}）です。
-明日は${tomorrowStr}です。
+今日: ${todayISO}（${today}）/ 明日: ${tomorrowISO}
 
-【あなたの役割】
-お客様のLINEメッセージに対して、予約受付・変更・キャンセル・よくある質問への回答を行います。
+【営業時間】${JSON.stringify(shop?.opening_hours ?? {})}
+【FAQ】${JSON.stringify(shop?.faq ?? [])}
+【空席設定】1枠${shop?.slot_minutes ?? 30}分・最大${shop?.capacity_per_slot ?? 20}名
 
-【営業時間】
-${JSON.stringify(shop?.opening_hours ?? {})}
+【日付変換ルール（厳守）】
+- 「5/30」「5月30日」→ ${new Date().getFullYear()}-05-30
+- 「明日」→ ${tomorrowISO} / 「今日」→ ${todayISO}
+- 日付は必ずYYYY-MM-DD形式でタグに入れる
 
-【よくある質問と回答】
-${JSON.stringify(shop?.faq ?? [])}
+【予約フロー】
+1. 日時・人数・名前を1つずつ確認
+2. 揃ったら空席チェック: <CHECK_AVAILABILITY>{"date":"YYYY-MM-DD","time":"HH:MM","party_size":人数}</CHECK_AVAILABILITY>
+3. 空席OK → 予約確定: <RESERVATION>{"name":"名前","date":"YYYY-MM-DD","time":"HH:MM","party_size":人数}</RESERVATION>
+4. 満席 → 代替時間を提案
 
-【空席管理】
-- 1枠（${shop?.slot_minutes ?? 30}分）あたりの最大受入人数: ${shop?.capacity_per_slot ?? 20}名
-- 予約確定前に必ず空席チェックが必要です
-- 満席の場合は代替時間を提案してください
-
-【日付の解釈ルール - 必ず守ること】
-- お客様が「5/30」「5月30日」と言ったら → ${new Date().getFullYear()}年5月30日 = YYYY-MM-DD形式で正確に変換する
-- お客様が「明日」と言ったら → ${tomorrowStr}
-- お客様が「今日」と言ったら → ${todayISO}
-- 曜日で言われた場合は今週または来週の該当曜日を判断する
-- 日付が不明な場合は推測せず、必ず確認する
-- CHECK_AVAILABILITYタグの date は必ず YYYY-MM-DD 形式で正確に入力すること
-
-【予約受付ルール】
-- 予約に必要な情報: 日時・人数・お名前
-- 情報が不足している場合は、1つずつ丁寧に確認する
-- お客様が日付を指定した場合は、その日付をそのまま使う（勝手に変えない）
-- 情報が揃ったら以下のタグで空席チェックを要求する（お客様には見えません）:
-  <CHECK_AVAILABILITY>{"date":"YYYY-MM-DD","time":"HH:MM","party_size":人数}</CHECK_AVAILABILITY>
-- 空席確認後に予約確定する場合は以下のタグを含める（お客様には見えません）:
-  <RESERVATION>{"name":"名前","date":"YYYY-MM-DD","time":"HH:MM","party_size":人数}</RESERVATION>
-
-【会話の継続性】
-- 過去の会話の内容を必ず踏まえて返答する
-- お客様が前の返答を訂正・指摘した場合は、その指摘を優先する
-- 同じ内容を繰り返さず、会話の流れに沿って対応する
-
-【返答のルール】
-- 丁寧かつ簡潔に（3〜5行以内）
-- 絵文字は控えめに使用
-- 敬語を使う
-- 質問は1回に1つだけ`
+【会話ルール】
+- 前の会話を踏まえて返答（繰り返し禁止）
+- お客様の訂正・指摘を最優先
+- 3〜5行以内・敬語・質問は1つずつ`
 
   const messages = [
     ...history.map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
