@@ -757,12 +757,12 @@
     <div class="agent-info">
       <p class="agent-num">AGENT 01</p>
       <h3>LINE予約<br>エージェント</h3>
-      <p>LINEに届く予約・問い合わせをAIが24時間自動対応。日時・人数・氏名を会話で収集し、予約台帳へ自動記録。</p>
+      <p>LINEに届く予約・問い合わせをAIが24時間自動対応。日時・人数・氏名を会話で収集し、空席を確認した上で予約台帳へ自動記録。</p>
       <div class="agent-features">
         <span class="agent-feature">予約受付・変更・キャンセルを自動処理</span>
-        <span class="agent-feature">満席時に代替日時を自動提案</span>
-        <span class="agent-feature">前日・当日リマインダーを自動送信</span>
-        <span class="agent-feature">よくある質問にRAGで即答</span>
+        <span class="agent-feature">リアルタイム空席チェック・満席時に代替日時を自動提案</span>
+        <span class="agent-feature">よくある質問にAIが即答</span>
+        <span class="agent-feature" style="opacity:.55">前日・当日リマインダー自動送信 <span style="font-size:.7rem;background:rgba(212,136,58,.2);color:var(--amber);padding:.1rem .4rem;border-radius:3px;margin-left:.3rem">準備中</span></span>
       </div>
     </div>
     <div class="agent-visual">
@@ -799,12 +799,12 @@
     <div class="agent-info">
       <p class="agent-num">AGENT 02</p>
       <h3>シフト×<br>繁忙予測エージェント</h3>
-      <p>予約データ・天気・地域イベントを分析して来客数を予測。必要なシフト人数を算出し、LINEでスタッフと調整まで自動化。</p>
+      <p>予約データをもとに来客数を予測。必要なシフト人数を算出し、LINEでスタッフと調整まで自動化。週2時間のシフト作業をゼロに。</p>
       <div class="agent-features">
-        <span class="agent-feature">予約データ×天気×イベントで来客予測</span>
-        <span class="agent-feature">LINEでシフト希望を自動収集</span>
-        <span class="agent-feature">最適シフト案を自動生成</span>
-        <span class="agent-feature">月次の人件費レポートを出力</span>
+        <span class="agent-feature" style="opacity:.55">予約データ×天気×イベントで来客予測 <span style="font-size:.7rem;background:rgba(212,136,58,.2);color:var(--amber);padding:.1rem .4rem;border-radius:3px;margin-left:.3rem">準備中</span></span>
+        <span class="agent-feature" style="opacity:.55">LINEでシフト希望を自動収集 <span style="font-size:.7rem;background:rgba(212,136,58,.2);color:var(--amber);padding:.1rem .4rem;border-radius:3px;margin-left:.3rem">準備中</span></span>
+        <span class="agent-feature" style="opacity:.55">最適シフト案を自動生成 <span style="font-size:.7rem;background:rgba(212,136,58,.2);color:var(--amber);padding:.1rem .4rem;border-radius:3px;margin-left:.3rem">準備中</span></span>
+        <span class="agent-feature" style="opacity:.55">月次の人件費レポートを出力 <span style="font-size:.7rem;background:rgba(212,136,58,.2);color:var(--amber);padding:.1rem .4rem;border-radius:3px;margin-left:.3rem">準備中</span></span>
       </div>
     </div>
     <div class="agent-visual">
@@ -1008,7 +1008,7 @@
   </button>
   <div class="accordion-body" id="revenueBody">
     <div class="revenue-inner">
-      <p class="rev-sub">1店舗・1契約あたりの月間収益構造とLTVを試算します。</p>
+      <p class="rev-sub">1店舗・1契約あたりの月間収益構造とLTVを試算します。<br><span style="font-size:.82rem;color:var(--mist)">※ 現在稼働中の機能（LINE予約・空席チェック）をベースにした原価です。シフト・MEO機能の追加に伴い原価は変動します。</span></p>
 
       <div class="rev-slider-section">
         <div class="rev-slider-header">
@@ -1100,20 +1100,19 @@ const REV_PLANS = [
     ]
   },
   {
-    key:'standard', name:'STANDARD', price:5500, costBase:1200,
+    key:'standard', name:'STANDARD', price:5500, costBase:800,
     breakdown:[
-      { name:'Claude API', detail:'¥3×300回', val:900, tag:'SLA上限' },
-      { name:'LINE Messaging API', detail:'', val:100 },
+      { name:'Claude API', detail:'¥3×200回', val:600, tag:'予約+空席チェック' },
       { name:'インフラ・その他', detail:'', val:200 },
     ]
   },
   {
-    key:'premium', name:'PREMIUM', price:9800, costBase:2200,
+    key:'premium', name:'PREMIUM', price:9800, costBase:1400,
     breakdown:[
-      { name:'Claude API', detail:'¥3×500回+MEO', val:1800, tag:'SLA上限' },
+      { name:'Claude API', detail:'¥3×300回', val:900, tag:'予約+空席チェック' },
       { name:'LINE Messaging API', detail:'', val:100 },
       { name:'インフラ・その他', detail:'', val:200 },
-      { name:'MEO処理', detail:'Googleビジネス連携', val:100 },
+      { name:'MEO処理（準備中）', detail:'', val:200 },
     ]
   },
 ];
